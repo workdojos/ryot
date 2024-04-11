@@ -27,6 +27,11 @@ use markdown::{
     Options,
 };
 use nanoid::nanoid;
+use openidconnect::{
+    core::{CoreClient, CoreResponseType},
+    reqwest::async_http_client,
+    AuthenticationFlow, AuthorizationCode, CsrfToken, Nonce, Scope, TokenResponse,
+};
 use retainer::Cache;
 use rs_utils::{convert_naive_to_utc, get_first_and_last_day_of_month, IsFeatureEnabled};
 use rust_decimal::{
@@ -226,16 +231,29 @@ enum UserDetailsResult {
     Error(UserDetailsError),
 }
 
-#[derive(Debug, InputObject)]
-struct UserInput {
+#[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
+struct PasswordUserInput {
     username: String,
     #[graphql(secret)]
     password: String,
 }
 
+#[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
+struct OidcUserInput {
+    email: String,
+    #[graphql(secret)]
+    issuer_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, OneofObject, Clone)]
+enum AuthUserInput {
+    Password(PasswordUserInput),
+    Oidc(OidcUserInput),
+}
+
 #[derive(Enum, Clone, Debug, Copy, PartialEq, Eq)]
 enum RegisterErrorVariant {
-    UsernameAlreadyExists,
+    IdentifierAlreadyExists,
     Disabled,
 }
 
@@ -254,6 +272,7 @@ enum RegisterResult {
 enum LoginErrorVariant {
     UsernameDoesNotExist,
     CredentialsMismatch,
+    IncorrectProviderChosen,
 }
 
 #[derive(Debug, SimpleObject)]
@@ -275,7 +294,6 @@ enum LoginResult {
 #[derive(Debug, InputObject)]
 struct UpdateUserInput {
     username: Option<String>,
-    email: Option<String>,
     #[graphql(secret)]
     password: Option<String>,
 }
@@ -555,10 +573,10 @@ struct CoreDetails {
     author_name: String,
     repository_link: String,
     item_details_height: u32,
-    reviews_disabled: bool,
     page_limit: i32,
     timezone: String,
     token_valid_for_days: i64,
+    oidc_enabled: bool,
 }
 
 #[derive(Debug, Ord, PartialEq, Eq, PartialOrd, Clone)]
@@ -678,9 +696,9 @@ struct GraphqlCalendarEvent {
 }
 
 #[derive(Debug, Serialize, Deserialize, SimpleObject, Clone, Default)]
-struct GroupedCalendarEvent {
-    events: Vec<GraphqlCalendarEvent>,
-    date: NaiveDate,
+struct OidcTokenOutput {
+    subject: String,
+    email: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, InputObject, Clone, Default)]
@@ -724,12 +742,50 @@ struct MetadataSearchInput {
     source: MediaSource,
 }
 
+#[derive(Debug, Serialize, Deserialize, SimpleObject, Clone, Default)]
+struct GroupedCalendarEvent {
+    events: Vec<GraphqlCalendarEvent>,
+    date: NaiveDate,
+}
+
 fn get_password_hasher() -> Argon2<'static> {
     Argon2::default()
 }
 
 fn get_id_hasher(salt: &str) -> Harsh {
     Harsh::builder().length(10).salt(salt).build().unwrap()
+}
+
+fn get_review_export_item(rev: ReviewItem) -> ImportOrExportItemRating {
+    let (show_season_number, show_episode_number) = match rev.show_extra_information {
+        Some(d) => (Some(d.season), Some(d.episode)),
+        None => (None, None),
+    };
+    let podcast_episode_number = rev.podcast_extra_information.map(|d| d.episode);
+    let anime_episode_number = rev.anime_extra_information.and_then(|d| d.episode);
+    let manga_chapter_number = rev.manga_extra_information.and_then(|d| d.chapter);
+    ImportOrExportItemRating {
+        review: Some(ImportOrExportItemReview {
+            visibility: Some(rev.visibility),
+            date: Some(rev.posted_on),
+            spoiler: Some(rev.spoiler),
+            text: rev.text_original,
+        }),
+        rating: rev.rating,
+        show_season_number,
+        show_episode_number,
+        podcast_episode_number,
+        anime_episode_number,
+        manga_chapter_number,
+        comments: match rev.comments.is_empty() {
+            true => None,
+            false => Some(rev.comments),
+        },
+    }
+}
+
+fn empty_nonce_verifier(_nonce: Option<&Nonce>) -> Result<(), String> {
+    Ok(())
 }
 
 #[derive(Default)]
@@ -1013,6 +1069,18 @@ impl MiscellaneousQuery {
         let user_id = service.user_id_from_ctx(gql_ctx).await?;
         service.metadata_group_search(user_id, input).await
     }
+
+    /// Get an authorization URL using the configured OIDC client.
+    async fn get_oidc_redirect_url(&self, gql_ctx: &Context<'_>) -> Result<String> {
+        let service = gql_ctx.data_unchecked::<Arc<MiscellaneousService>>();
+        service.get_oidc_redirect_url().await
+    }
+
+    /// Get an access token using the configured OIDC client.
+    async fn get_oidc_token(&self, gql_ctx: &Context<'_>, code: String) -> Result<OidcTokenOutput> {
+        let service = gql_ctx.data_unchecked::<Arc<MiscellaneousService>>();
+        service.get_oidc_token(code).await
+    }
 }
 
 #[derive(Default)]
@@ -1177,18 +1245,16 @@ impl MiscellaneousMutation {
     async fn register_user(
         &self,
         gql_ctx: &Context<'_>,
-        input: UserInput,
+        input: AuthUserInput,
     ) -> Result<RegisterResult> {
         let service = gql_ctx.data_unchecked::<Arc<MiscellaneousService>>();
-        service
-            .register_user(&input.username, &input.password)
-            .await
+        service.register_user(input).await
     }
 
     /// Login a user using their username and password and return an auth token.
-    async fn login_user(&self, gql_ctx: &Context<'_>, input: UserInput) -> Result<LoginResult> {
+    async fn login_user(&self, gql_ctx: &Context<'_>, input: AuthUserInput) -> Result<LoginResult> {
         let service = gql_ctx.data_unchecked::<Arc<MiscellaneousService>>();
-        service.login_user(&input.username, &input.password).await
+        service.login_user(input).await
     }
 
     /// Update a user's profile details.
@@ -1399,6 +1465,7 @@ pub struct MiscellaneousService {
     file_storage_service: Arc<FileStorageService>,
     seen_progress_cache: Arc<Cache<ProgressUpdateCache, ()>>,
     config: Arc<config::AppConfig>,
+    oidc_client: Arc<Option<CoreClient>>,
 }
 
 impl AuthProvider for MiscellaneousService {}
@@ -1411,19 +1478,13 @@ impl MiscellaneousService {
         perform_application_job: &SqliteStorage<ApplicationJob>,
         perform_core_application_job: &SqliteStorage<CoreApplicationJob>,
         timezone: Arc<chrono_tz::Tz>,
+        oidc_client: Arc<Option<CoreClient>>,
     ) -> Self {
         let seen_progress_cache = Arc::new(Cache::new());
-        let cache_clone = seen_progress_cache.clone();
+        let seen_progress_cache_clone = seen_progress_cache.clone();
 
-        tokio::spawn(async move {
-            cache_clone
-                .monitor(
-                    4,
-                    0.25,
-                    ChronoDuration::try_minutes(3).unwrap().to_std().unwrap(),
-                )
-                .await
-        });
+        let frequency = ChronoDuration::try_minutes(3).unwrap().to_std().unwrap();
+        tokio::spawn(async move { seen_progress_cache_clone.monitor(4, 0.25, frequency).await });
 
         Self {
             db: db.clone(),
@@ -1433,35 +1494,8 @@ impl MiscellaneousService {
             seen_progress_cache,
             perform_application_job: perform_application_job.clone(),
             perform_core_application_job: perform_core_application_job.clone(),
+            oidc_client,
         }
-    }
-}
-
-fn get_review_export_item(rev: ReviewItem) -> ImportOrExportItemRating {
-    let (show_season_number, show_episode_number) = match rev.show_extra_information {
-        Some(d) => (Some(d.season), Some(d.episode)),
-        None => (None, None),
-    };
-    let podcast_episode_number = rev.podcast_extra_information.map(|d| d.episode);
-    let anime_episode_number = rev.anime_extra_information.and_then(|d| d.episode);
-    let manga_chapter_number = rev.manga_extra_information.and_then(|d| d.chapter);
-    ImportOrExportItemRating {
-        review: Some(ImportOrExportItemReview {
-            visibility: Some(rev.visibility),
-            date: Some(rev.posted_on),
-            spoiler: Some(rev.spoiler),
-            text: rev.text_original,
-        }),
-        rating: rev.rating,
-        show_season_number,
-        show_episode_number,
-        podcast_episode_number,
-        anime_episode_number,
-        manga_chapter_number,
-        comments: match rev.comments.is_empty() {
-            true => None,
-            false => Some(rev.comments),
-        },
     }
 }
 
@@ -1475,9 +1509,9 @@ impl MiscellaneousService {
             docs_link: "https://ignisda.github.io/ryot".to_owned(),
             repository_link: "https://github.com/ignisda/ryot".to_owned(),
             page_limit: self.config.frontend.page_size,
-            reviews_disabled: self.config.users.reviews_disabled,
             item_details_height: self.config.frontend.item_details_height,
             token_valid_for_days: self.config.users.token_valid_for_days,
+            oidc_enabled: self.oidc_client.is_some(),
         })
     }
 
@@ -2802,7 +2836,7 @@ impl MiscellaneousService {
                         "Removing user_to_metadata = {id:?}",
                         id = (u.user_id, u.metadata_id)
                     );
-                    u.delete(&self.db).await.ok();
+                    u.delete(&self.db).await.unwrap();
                 } else {
                     let mut new_reasons = HashSet::new();
                     if seen_count > 0 {
@@ -2834,7 +2868,7 @@ impl MiscellaneousService {
                         u.media_reason = ActiveValue::Set(Some(new_reasons.into_iter().collect()));
                     }
                     u.needs_to_be_updated = ActiveValue::Set(None);
-                    u.update(&self.db).await.ok();
+                    u.update(&self.db).await.unwrap();
                 }
             }
             let all_user_to_person = UserToEntity::find()
@@ -2870,7 +2904,7 @@ impl MiscellaneousService {
                         "Removing user_to_person = {id:?}",
                         id = (u.user_id, u.person_id)
                     );
-                    u.delete(&self.db).await.ok();
+                    u.delete(&self.db).await.unwrap();
                 } else {
                     let mut new_reasons = HashSet::new();
                     if reviewed_count > 0 {
@@ -2896,7 +2930,7 @@ impl MiscellaneousService {
                         u.media_reason = ActiveValue::Set(Some(new_reasons.into_iter().collect()));
                     }
                     u.needs_to_be_updated = ActiveValue::Set(None);
-                    u.update(&self.db).await.ok();
+                    u.update(&self.db).await.unwrap();
                 }
             }
             let all_user_to_metadata_groups = UserToEntity::find()
@@ -2918,7 +2952,10 @@ impl MiscellaneousService {
                 let collections_part_of = CollectionToEntity::find()
                     .select_only()
                     .column(collection_to_entity::Column::CollectionId)
-                    .filter(collection_to_entity::Column::MetadataId.eq(u.metadata_id.unwrap()))
+                    .filter(
+                        collection_to_entity::Column::MetadataGroupId
+                            .eq(u.metadata_group_id.unwrap()),
+                    )
                     .filter(collection_to_entity::Column::CollectionId.is_not_null())
                     .into_tuple::<i32>()
                     .all(&self.db)
@@ -2933,7 +2970,7 @@ impl MiscellaneousService {
                         "Removing user_to_metadata_group = {id:?}",
                         id = (u.user_id, u.metadata_group_id)
                     );
-                    u.delete(&self.db).await.ok();
+                    u.delete(&self.db).await.unwrap();
                 } else {
                     let mut new_reasons = HashSet::new();
                     if reviewed_count > 0 {
@@ -2962,7 +2999,7 @@ impl MiscellaneousService {
                         u.media_reason = ActiveValue::Set(Some(new_reasons.into_iter().collect()));
                     }
                     u.needs_to_be_updated = ActiveValue::Set(None);
-                    u.update(&self.db).await.ok();
+                    u.update(&self.db).await.unwrap();
                 }
             }
         }
@@ -3872,6 +3909,14 @@ impl MiscellaneousService {
         Ok(service)
     }
 
+    pub async fn get_tmdb_non_media_service(&self) -> Result<NonMediaTmdbService> {
+        Ok(NonMediaTmdbService::new(
+            self.config.movies_and_shows.tmdb.access_token.clone(),
+            self.config.movies_and_shows.tmdb.locale.clone(),
+        )
+        .await)
+    }
+
     async fn get_non_metadata_provider(&self, source: MediaSource) -> Result<Provider> {
         let err = || Err(Error::new("This source is not supported".to_owned()));
         let service: Provider = match source {
@@ -3911,13 +3956,7 @@ impl MiscellaneousService {
                 )
                 .await,
             ),
-            MediaSource::Tmdb => Box::new(
-                NonMediaTmdbService::new(
-                    self.config.movies_and_shows.tmdb.access_token.clone(),
-                    self.config.movies_and_shows.tmdb.locale.clone(),
-                )
-                .await,
-            ),
+            MediaSource::Tmdb => Box::new(self.get_tmdb_non_media_service().await?),
             MediaSource::Anilist => {
                 Box::new(NonMediaAnilistService::new(self.config.frontend.page_size).await)
             }
@@ -4389,8 +4428,11 @@ impl MiscellaneousService {
     }
 
     pub async fn post_review(&self, user_id: i32, input: PostReviewInput) -> Result<IdObject> {
-        if self.config.users.reviews_disabled {
-            return Err(Error::new("Posting reviews on this instance is disabled"));
+        let preferences = partial_user_by_id::<UserWithOnlyPreferences>(&self.db, user_id)
+            .await?
+            .preferences;
+        if preferences.general.disable_reviews {
+            return Err(Error::new("Reviews are disabled"));
         }
         let review_id = match input.review_id {
             Some(i) => ActiveValue::Set(i),
@@ -4419,9 +4461,6 @@ impl MiscellaneousService {
         if input.rating.is_none() && input.text.is_none() {
             return Err(Error::new("At-least one of rating or review is required."));
         }
-        let preferences = partial_user_by_id::<UserWithOnlyPreferences>(&self.db, user_id)
-            .await?
-            .preferences;
         let mut review_obj = review::ActiveModel {
             id: review_id,
             rating: ActiveValue::Set(input.rating.map(
@@ -4522,6 +4561,15 @@ impl MiscellaneousService {
         match review {
             Some(r) => {
                 if r.user_id == user_id {
+                    associate_user_with_entity(
+                        &user_id,
+                        r.metadata_id,
+                        r.person_id,
+                        None,
+                        r.metadata_group_id,
+                        &self.db,
+                    )
+                    .await?;
                     r.delete(&self.db).await?;
                     Ok(true)
                 } else {
@@ -4628,11 +4676,20 @@ impl MiscellaneousService {
                 collection_to_entity::Column::MetadataId
                     .eq(input.metadata_id)
                     .or(collection_to_entity::Column::PersonId.eq(input.person_id))
-                    .or(collection_to_entity::Column::MetadataGroupId.eq(input.media_group_id))
-                    .or(collection_to_entity::Column::ExerciseId.eq(input.exercise_id)),
+                    .or(collection_to_entity::Column::MetadataGroupId.eq(input.metadata_group_id))
+                    .or(collection_to_entity::Column::ExerciseId.eq(input.exercise_id.clone())),
             )
             .exec(&self.db)
             .await?;
+        associate_user_with_entity(
+            &user_id,
+            input.metadata_id,
+            input.person_id,
+            input.exercise_id,
+            input.metadata_group_id,
+            &self.db,
+        )
+        .await?;
         Ok(IdObject { id: collect.id })
     }
 
@@ -4677,6 +4734,8 @@ impl MiscellaneousService {
                 .await
                 .ok();
             }
+            associate_user_with_entity(&user_id, Some(metadata_id), None, None, None, &self.db)
+                .await?;
             Ok(IdObject { id: seen_id })
         } else {
             Err(Error::new("This seen item does not exist".to_owned()))
@@ -5035,22 +5094,32 @@ impl MiscellaneousService {
         Ok(IdObject { id: obj.id })
     }
 
-    async fn register_user(&self, username: &str, password: &str) -> Result<RegisterResult> {
+    async fn register_user(&self, input: AuthUserInput) -> Result<RegisterResult> {
         if !self.config.users.allow_registration {
             return Ok(RegisterResult::Error(RegisterError {
                 error: RegisterErrorVariant::Disabled,
             }));
         }
-        if User::find()
-            .filter(user::Column::Name.eq(username))
-            .count(&self.db)
-            .await
-            .unwrap()
-            != 0
-        {
+        let (filter, username, password) = match input.clone() {
+            AuthUserInput::Oidc(input) => (
+                user::Column::OidcIssuerId.eq(&input.issuer_id),
+                input.email,
+                None,
+            ),
+            AuthUserInput::Password(input) => (
+                user::Column::Name.eq(&input.username),
+                input.username,
+                Some(input.password),
+            ),
+        };
+        if User::find().filter(filter).count(&self.db).await.unwrap() != 0 {
             return Ok(RegisterResult::Error(RegisterError {
-                error: RegisterErrorVariant::UsernameAlreadyExists,
+                error: RegisterErrorVariant::IdentifierAlreadyExists,
             }));
+        };
+        let oidc_issuer_id = match input {
+            AuthUserInput::Oidc(input) => Some(input.issuer_id),
+            AuthUserInput::Password(_) => None,
         };
         let lot = if User::find().count(&self.db).await.unwrap() == 0 {
             UserLot::Admin
@@ -5058,8 +5127,9 @@ impl MiscellaneousService {
             UserLot::Normal
         };
         let user = user::ActiveModel {
-            name: ActiveValue::Set(username.to_owned()),
-            password: ActiveValue::Set(password.to_owned()),
+            name: ActiveValue::Set(username),
+            password: ActiveValue::Set(password),
+            oidc_issuer_id: ActiveValue::Set(oidc_issuer_id),
             lot: ActiveValue::Set(lot),
             preferences: ActiveValue::Set(UserPreferences::default()),
             sink_integrations: ActiveValue::Set(vec![]),
@@ -5072,35 +5142,43 @@ impl MiscellaneousService {
         Ok(RegisterResult::Ok(IdObject { id: user.id }))
     }
 
-    async fn login_user(&self, username: &str, password: &str) -> Result<LoginResult> {
-        let user = User::find()
-            .filter(user::Column::Name.eq(username))
-            .one(&self.db)
-            .await
-            .unwrap();
-        if user.is_none() {
-            return Ok(LoginResult::Error(LoginError {
-                error: LoginErrorVariant::UsernameDoesNotExist,
-            }));
+    async fn login_user(&self, input: AuthUserInput) -> Result<LoginResult> {
+        let filter = match input.clone() {
+            AuthUserInput::Oidc(input) => user::Column::OidcIssuerId.eq(input.issuer_id),
+            AuthUserInput::Password(input) => user::Column::Name.eq(input.username),
         };
-        let user = user.unwrap();
-        if self.config.users.validate_password {
-            let parsed_hash = PasswordHash::new(&user.password).unwrap();
-            if get_password_hasher()
-                .verify_password(password.as_bytes(), &parsed_hash)
-                .is_err()
-            {
-                return Ok(LoginResult::Error(LoginError {
-                    error: LoginErrorVariant::CredentialsMismatch,
-                }));
+        match User::find().filter(filter).one(&self.db).await.unwrap() {
+            None => Ok(LoginResult::Error(LoginError {
+                error: LoginErrorVariant::UsernameDoesNotExist,
+            })),
+            Some(user) => {
+                if self.config.users.validate_password {
+                    if let AuthUserInput::Password(PasswordUserInput { password, .. }) = input {
+                        if let Some(hashed_password) = user.password {
+                            let parsed_hash = PasswordHash::new(&hashed_password).unwrap();
+                            if get_password_hasher()
+                                .verify_password(password.as_bytes(), &parsed_hash)
+                                .is_err()
+                            {
+                                return Ok(LoginResult::Error(LoginError {
+                                    error: LoginErrorVariant::CredentialsMismatch,
+                                }));
+                            }
+                        } else {
+                            return Ok(LoginResult::Error(LoginError {
+                                error: LoginErrorVariant::IncorrectProviderChosen,
+                            }));
+                        }
+                    }
+                }
+                let jwt_key = jwt::sign(
+                    user.id,
+                    &self.config.users.jwt_secret,
+                    self.config.users.token_valid_for_days,
+                )?;
+                Ok(LoginResult::Ok(LoginResponse { api_key: jwt_key }))
             }
         }
-        let jwt_key = jwt::sign(
-            user.id,
-            &self.config.users.jwt_secret,
-            self.config.users.token_valid_for_days,
-        )?;
-        Ok(LoginResult::Ok(LoginResponse { api_key: jwt_key }))
     }
 
     // this job is run when a user is created for the first time
@@ -5130,12 +5208,7 @@ impl MiscellaneousService {
         if let Some(n) = input.username {
             user_obj.name = ActiveValue::Set(n);
         }
-        if let Some(e) = input.email {
-            user_obj.email = ActiveValue::Set(Some(e));
-        }
-        if let Some(p) = input.password {
-            user_obj.password = ActiveValue::Set(p);
-        }
+        user_obj.password = ActiveValue::Set(input.password);
         let user_obj = user_obj.update(&self.db).await.unwrap();
         Ok(IdObject { id: user_obj.id })
     }
@@ -5568,6 +5641,9 @@ impl MiscellaneousService {
                         "watch_providers" => {
                             preferences.general.watch_providers =
                                 serde_json::from_str(&input.value).unwrap();
+                        }
+                        "disable_reviews" => {
+                            preferences.general.disable_reviews = value_bool.unwrap();
                         }
                         _ => return Err(err()),
                     },
@@ -7043,14 +7119,17 @@ impl MiscellaneousService {
             .await?;
 
         while let Some(meta) = meta_stream.try_next().await? {
+            tracing::trace!("Processing metadata id = {:#?}", meta.id);
             let calendar_events = meta.find_related(CalendarEvent).all(&self.db).await?;
             for cal_event in calendar_events {
                 let mut need_to_delete = false;
                 if let Some(show) = cal_event.metadata_show_extra_information {
                     if let Some(show_info) = &meta.show_specifics {
                         if let Some((_, ep)) = show_info.get_episode(show.season, show.episode) {
-                            if ep.publish_date.unwrap() != cal_event.date {
-                                need_to_delete = true;
+                            if let Some(publish_date) = ep.publish_date {
+                                if publish_date != cal_event.date {
+                                    need_to_delete = true;
+                                }
                             }
                         }
                     }
@@ -7384,6 +7463,43 @@ GROUP BY m.id;
             url += format!("?defaultTab={}", tab).as_str()
         }
         url
+    }
+
+    async fn get_oidc_redirect_url(&self) -> Result<String> {
+        match self.oidc_client.as_ref() {
+            Some(client) => {
+                let (authorize_url, _, _) = client
+                    .authorize_url(
+                        AuthenticationFlow::<CoreResponseType>::AuthorizationCode,
+                        CsrfToken::new_random,
+                        Nonce::new_random,
+                    )
+                    .add_scope(Scope::new("email".to_string()))
+                    .url();
+                Ok(authorize_url.to_string())
+            }
+            _ => Err(Error::new("OIDC client not configured")),
+        }
+    }
+
+    async fn get_oidc_token(&self, code: String) -> Result<OidcTokenOutput> {
+        match self.oidc_client.as_ref() {
+            Some(client) => {
+                let token = client
+                    .exchange_code(AuthorizationCode::new(code))
+                    .request_async(async_http_client)
+                    .await?;
+                let id_token = token.id_token().unwrap();
+                let claims = id_token.claims(&client.id_token_verifier(), empty_nonce_verifier)?;
+                let subject = claims.subject().to_string();
+                let email = claims
+                    .email()
+                    .map(|e| e.to_string())
+                    .ok_or_else(|| Error::new("Email not found in OIDC token claims"))?;
+                Ok(OidcTokenOutput { subject, email })
+            }
+            _ => Err(Error::new("OIDC client not configured")),
+        }
     }
 
     #[cfg(debug_assertions)]
