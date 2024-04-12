@@ -33,8 +33,8 @@ mod m20240121_remove_useless_section_from_dashboard;
 mod m20240122_remove_useless_section_from_dashboard;
 mod m20240126_set_comment_to_null_for_measurements;
 mod m20240128_change_calendar_event_data;
-mod m20240128_migrate_anime_seen;
-mod m20240128_migrate_manga_seen;
+mod m20240128_migrate_studies_seen;
+mod m20240128_migrate_comic_seen;
 mod m20240202_0_normalize_seen_data;
 mod m20240202_1_normalize_calendar_events_data;
 mod m20240202_2_normalize_reviews_data;
@@ -77,10 +77,6 @@ mod m20240402_1_create_collection_to_entity_entries_for_monitoring_media;
 mod m20240402_2_drop_media_monitored_column_from_user_to_entity;
 mod m20240402_3_change_name_of_reason;
 mod m20240403_add_total_time_spent_column_to_seen;
-mod m20240408_0_add_disable_reviews_to_preferences;
-mod m20240408_1_add_oidc_issuer_id_to_user;
-mod m20240408_2_cleanup_user;
-mod m20240410_change_unique_constraints_to_indices;
 
 pub use m20230410_create_metadata::Metadata as AliasedMetadata;
 pub use m20230413_create_person::Person as AliasedPerson;
@@ -131,8 +127,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20240122_remove_useless_section_from_dashboard::Migration),
             Box::new(m20240126_set_comment_to_null_for_measurements::Migration),
             Box::new(m20240128_change_calendar_event_data::Migration),
-            Box::new(m20240128_migrate_anime_seen::Migration),
-            Box::new(m20240128_migrate_manga_seen::Migration),
+            Box::new(m20240128_migrate_studies_seen::Migration),
+            Box::new(m20240128_migrate_comic_seen::Migration),
             Box::new(m20240202_0_normalize_seen_data::Migration),
             Box::new(m20240202_1_normalize_calendar_events_data::Migration),
             Box::new(m20240202_2_normalize_reviews_data::Migration),
@@ -177,10 +173,6 @@ impl MigratorTrait for Migrator {
             Box::new(m20240402_2_drop_media_monitored_column_from_user_to_entity::Migration),
             Box::new(m20240402_3_change_name_of_reason::Migration),
             Box::new(m20240403_add_total_time_spent_column_to_seen::Migration),
-            Box::new(m20240408_0_add_disable_reviews_to_preferences::Migration),
-            Box::new(m20240408_1_add_oidc_issuer_id_to_user::Migration),
-            Box::new(m20240408_2_cleanup_user::Migration),
-            Box::new(m20240410_change_unique_constraints_to_indices::Migration),
         ]
     }
 }

@@ -153,7 +153,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 				await getAuthorizationHeader(request),
 			);
 			return redirect(
-				$path("/fitness/workouts/:id", { id: createUserWorkout }),
+				$path("/fitness/meditation/:id", { id: createUserWorkout }),
 				{
 					headers: await createToastHeaders({
 						message: "Workout completed successfully",
@@ -445,7 +445,7 @@ export default function Page() {
 											color="teal"
 											to={$path("/fitness/measurements/list", {
 												openModal: true,
-												redirectTo: $path("/fitness/workouts/current"),
+												redirectTo: $path("/fitness/meditation/current"),
 											})}
 										>
 											Add measurement

@@ -11,7 +11,7 @@ use surf::{http::headers::ACCEPT, Client};
 use crate::{
     models::{
         media::{
-            AnimeSpecifics, MangaSpecifics, MediaDetails, MetadataImageForMediaDetails,
+            StudiesSpecifics, ComicSpecifics, MediaDetails, MetadataImageForMediaDetails,
             MetadataImageLot, MetadataPerson, MetadataSearchItem, MetadataVideo,
             MetadataVideoSource, PartialMetadataPerson, PartialMetadataWithoutId, PeopleSearchItem,
             PersonSourceSpecifics,
@@ -275,8 +275,8 @@ impl MediaProvider for NonMediaAnilistService {
                             identifier: data.id.to_string(),
                             source: MediaSource::Anilist,
                             lot: match data.type_.unwrap() {
-                                studio_query::MediaType::ANIME => MediaLot::Anime,
-                                studio_query::MediaType::MANGA => MediaLot::Manga,
+                                studio_query::MediaType::ANIME => MediaLot::Studies,
+                                studio_query::MediaType::MANGA => MediaLot::Comic,
                                 studio_query::MediaType::Other(_) => unreachable!(),
                             },
                             image: data.cover_image.unwrap().extra_large,
@@ -357,8 +357,8 @@ impl MediaProvider for NonMediaAnilistService {
                             identifier: data.id.to_string(),
                             source: MediaSource::Anilist,
                             lot: match data.type_.unwrap() {
-                                staff_query::MediaType::ANIME => MediaLot::Anime,
-                                staff_query::MediaType::MANGA => MediaLot::Manga,
+                                staff_query::MediaType::ANIME => MediaLot::Studies,
+                                staff_query::MediaType::MANGA => MediaLot::Comic,
                                 staff_query::MediaType::Other(_) => unreachable!(),
                             },
                             image: data.cover_image.unwrap().extra_large,
@@ -382,8 +382,8 @@ impl MediaProvider for NonMediaAnilistService {
                                 identifier: data.id.to_string(),
                                 source: MediaSource::Anilist,
                                 lot: match data.type_.unwrap() {
-                                    staff_query::MediaType::ANIME => MediaLot::Anime,
-                                    staff_query::MediaType::MANGA => MediaLot::Manga,
+                                    staff_query::MediaType::ANIME => MediaLot::Studies,
+                                    staff_query::MediaType::MANGA => MediaLot::Comic,
                                     staff_query::MediaType::Other(_) => unreachable!(),
                                 },
                                 image: data.cover_image.unwrap().extra_large,
@@ -411,11 +411,11 @@ impl MediaProvider for NonMediaAnilistService {
 }
 
 #[derive(Debug, Clone)]
-pub struct AnilistAnimeService {
+pub struct AnilistStudiesService {
     base: AnilistService,
 }
 
-impl AnilistAnimeService {
+impl AnilistStudiesService {
     pub async fn new(config: &config::AnilistConfig, page_limit: i32) -> Self {
         let client = get_client_config(URL).await;
         Self {
@@ -429,7 +429,7 @@ impl AnilistAnimeService {
 }
 
 #[async_trait]
-impl MediaProvider for AnilistAnimeService {
+impl MediaProvider for AnilistStudiesService {
     async fn metadata_details(&self, identifier: &str) -> Result<MediaDetails> {
         let details =
             media_details(&self.base.client, identifier, self.base.prefer_english).await?;
@@ -460,11 +460,11 @@ impl MediaProvider for AnilistAnimeService {
 }
 
 #[derive(Debug, Clone)]
-pub struct AnilistMangaService {
+pub struct AnilistComicService {
     base: AnilistService,
 }
 
-impl AnilistMangaService {
+impl AnilistComicService {
     pub async fn new(config: &config::AnilistConfig, page_limit: i32) -> Self {
         let client = get_client_config(URL).await;
         Self {
@@ -478,7 +478,7 @@ impl AnilistMangaService {
 }
 
 #[async_trait]
-impl MediaProvider for AnilistMangaService {
+impl MediaProvider for AnilistComicService {
     async fn metadata_details(&self, identifier: &str) -> Result<MediaDetails> {
         let details =
             media_details(&self.base.client, identifier, self.base.prefer_english).await?;
@@ -543,13 +543,13 @@ async fn media_details(client: &Client, id: &str, prefer_english: bool) -> Resul
         })
         .unique()
         .collect();
-    let mut genres = details
-        .genres
+    let mut trackers = details
+        .trackers
         .into_iter()
         .flatten()
         .map(|t| t.unwrap())
         .collect_vec();
-    genres.extend(
+    trackers.extend(
         details
             .tags
             .unwrap_or_default()
@@ -595,18 +595,18 @@ async fn media_details(client: &Client, id: &str, prefer_english: bool) -> Resul
     );
     let people = people.into_iter().unique().collect_vec();
     let lot = match details.type_.unwrap() {
-        media_details_query::MediaType::ANIME => MediaLot::Anime,
-        media_details_query::MediaType::MANGA => MediaLot::Manga,
+        media_details_query::MediaType::ANIME => MediaLot::Studies,
+        media_details_query::MediaType::MANGA => MediaLot::Comic,
         media_details_query::MediaType::Other(_) => unreachable!(),
     };
 
-    let anime_specifics = details.episodes.map(|c| AnimeSpecifics {
+    let studies_specifics = details.episodes.map(|c| StudiesSpecifics {
         episodes: c.try_into().ok(),
     });
-    let manga_specifics = details
+    let comic_specifics = details
         .chapters
         .zip(details.volumes)
-        .map(|(c, v)| MangaSpecifics {
+        .map(|(c, v)| ComicSpecifics {
             chapters: c.try_into().ok(),
             volumes: v.try_into().ok(),
             url: None,
@@ -629,8 +629,8 @@ async fn media_details(client: &Client, id: &str, prefer_english: bool) -> Resul
                 identifier: data.id.to_string(),
                 source: MediaSource::Anilist,
                 lot: match data.type_.unwrap() {
-                    media_details_query::MediaType::ANIME => MediaLot::Anime,
-                    media_details_query::MediaType::MANGA => MediaLot::Manga,
+                    media_details_query::MediaType::ANIME => MediaLot::Studies,
+                    media_details_query::MediaType::MANGA => MediaLot::Comic,
                     media_details_query::MediaType::Other(_) => unreachable!(),
                 },
                 image: data.cover_image.unwrap().extra_large,
@@ -663,11 +663,11 @@ async fn media_details(client: &Client, id: &str, prefer_english: bool) -> Resul
         creators: vec![],
         url_images: images,
         videos,
-        genres: genres.into_iter().unique().collect(),
+        trackers: trackers.into_iter().unique().collect(),
         publish_year: year,
         publish_date: None,
-        anime_specifics,
-        manga_specifics,
+        studies_specifics,
+        comic_specifics,
         suggestions,
         provider_rating: score,
         group_identifiers: vec![],

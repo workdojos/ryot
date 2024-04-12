@@ -24,8 +24,8 @@ pub struct IntegrationMedia {
     pub show_season_number: Option<i32>,
     pub show_episode_number: Option<i32>,
     pub podcast_episode_number: Option<i32>,
-    pub anime_episode_number: Option<i32>,
-    pub manga_chapter_number: Option<i32>,
+    pub studies_episode_number: Option<i32>,
+    pub comic_chapter_number: Option<i32>,
     pub provider_watched_on: Option<String>,
 }
 
@@ -113,8 +113,8 @@ impl IntegrationService {
             show_episode_number: payload.item.episode_number,
             provider_watched_on: Some("Jellyfin".to_string()),
             podcast_episode_number: None,
-            manga_chapter_number: None,
-            anime_episode_number: None,
+            comic_chapter_number: None,
+            studies_episode_number: None,
         })
     }
 
@@ -240,8 +240,8 @@ impl IntegrationService {
             show_season_number: payload.metadata.season_number,
             show_episode_number: payload.metadata.episode_number,
             podcast_episode_number: None,
-            anime_episode_number: None,
-            manga_chapter_number: None,
+            studies_episode_number: None,
+            comic_chapter_number: None,
         })
     }
 
@@ -320,8 +320,8 @@ impl IntegrationService {
                     show_season_number: None,
                     show_episode_number: None,
                     podcast_episode_number: None,
-                    anime_episode_number: None,
-                    manga_chapter_number: None,
+                    studies_episode_number: None,
+                    comic_chapter_number: None,
                 });
             }
         }

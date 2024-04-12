@@ -8,7 +8,6 @@ import {
 	Flex,
 	Group,
 	Modal,
-	Pagination,
 	Select,
 	Stack,
 	Tabs,
@@ -43,7 +42,11 @@ import { match } from "ts-pattern";
 import { withQuery, withoutHost } from "ufo";
 import { z } from "zod";
 import { zx } from "zodix";
-import { ApplicationGrid, DebouncedSearchInput } from "~/components/common";
+import {
+	ApplicationGrid,
+	ApplicationPagination,
+	DebouncedSearchInput,
+} from "~/components/common";
 import {
 	BaseDisplayItem,
 	type Item,
@@ -78,7 +81,7 @@ const SEARCH_SOURCES_ALLOWED = [
 	MediaSource.Vndb,
 	MediaSource.Openlibrary,
 	MediaSource.Audible,
-	MediaSource.MangaUpdates,
+	MediaSource.ComicUpdates,
 	MediaSource.Igdb,
 ] as const;
 
@@ -320,8 +323,7 @@ export default function Page() {
 									))}
 								</ApplicationGrid>
 								<Center>
-									<Pagination
-										size="sm"
+									<ApplicationPagination
 										value={loaderData.page}
 										onChange={(v) => setP("page", v.toString())}
 										total={Math.ceil(
@@ -359,8 +361,7 @@ export default function Page() {
 									))}
 								</ApplicationGrid>
 								<Center>
-									<Pagination
-										size="sm"
+									<ApplicationPagination
 										value={loaderData.page}
 										onChange={(v) => setP("page", v.toString())}
 										total={Math.ceil(

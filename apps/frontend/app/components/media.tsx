@@ -211,10 +211,10 @@ export const ReviewItemDisplay = (props: {
 											props.review.showExtraInformation?.episode,
 										podcastEpisodeNumber:
 											props.review.podcastExtraInformation?.episode,
-										animeEpisodeNumber:
-											props.review.animeExtraInformation?.episode,
-										mangaChapterNumber:
-											props.review.mangaExtraInformation?.chapter,
+										studiesEpisodeNumber:
+											props.review.studiesExtraInformation?.episode,
+										comicChapterNumber:
+											props.review.comicExtraInformation?.chapter,
 									});
 								}}
 							>
@@ -263,14 +263,14 @@ export const ReviewItemDisplay = (props: {
 							EP-{props.review.podcastExtraInformation.episode}
 						</Text>
 					) : null}
-					{typeof props.review.animeExtraInformation?.episode === "number" ? (
+					{typeof props.review.studiesExtraInformation?.episode === "number" ? (
 						<Text c="dimmed">
-							EP-{props.review.animeExtraInformation.episode}
+							EP-{props.review.studiesExtraInformation.episode}
 						</Text>
 					) : null}
-					{typeof props.review.mangaExtraInformation?.chapter === "number" ? (
+					{typeof props.review.comicExtraInformation?.chapter === "number" ? (
 						<Text c="dimmed">
-							Ch-{props.review.mangaExtraInformation.chapter}
+							Ch-{props.review.comicExtraInformation.chapter}
 						</Text>
 					) : null}
 					{(Number(props.review.rating) || 0) > 0 ? (
@@ -740,8 +740,8 @@ export const DisplayCollection = (props: {
 export type PostReview = {
 	showSeasonNumber?: number | null;
 	showEpisodeNumber?: number | null;
-	animeEpisodeNumber?: number | null;
-	mangaChapterNumber?: number | null;
+	studiesEpisodeNumber?: number | null;
+	comicChapterNumber?: number | null;
 	podcastEpisodeNumber?: number | null;
 	existingReview?: DeepPartial<ReviewItem>;
 };
@@ -871,27 +871,27 @@ export const PostReviewModal = (props: {
 							}
 						/>
 					) : null}
-					{props.lot === MediaLot.Anime ? (
+					{props.lot === MediaLot.Studies ? (
 						<NumberInput
 							label="Episode"
-							name="animeEpisodeNumber"
+							name="studiesEpisodeNumber"
 							hideControls
 							defaultValue={
-								props.data?.existingReview?.animeExtraInformation?.episode
-									? props.data.existingReview.animeExtraInformation?.episode
-									: props.data.animeEpisodeNumber || undefined
+								props.data?.existingReview?.studiesExtraInformation?.episode
+									? props.data.existingReview.studiesExtraInformation?.episode
+									: props.data.studiesEpisodeNumber || undefined
 							}
 						/>
 					) : null}
-					{props.lot === MediaLot.Manga ? (
+					{props.lot === MediaLot.Comic ? (
 						<NumberInput
 							label="Chapter"
-							name="mangaChapterNumber"
+							name="comicChapterNumber"
 							hideControls
 							defaultValue={
-								props.data?.existingReview?.mangaExtraInformation?.chapter
-									? props.data.existingReview.mangaExtraInformation?.chapter
-									: props.data.mangaChapterNumber || undefined
+								props.data?.existingReview?.comicExtraInformation?.chapter
+									? props.data.existingReview.comicExtraInformation?.chapter
+									: props.data.comicChapterNumber || undefined
 							}
 						/>
 					) : null}
@@ -1069,12 +1069,7 @@ export const CreateOwnershipModal = (props: {
 			withCloseButton={false}
 			centered
 		>
-			<Form
-				method="post"
-				action="/actions?intent=toggleMediaOwnership"
-				replace
-				onSubmit={() => events.markAsOwned()}
-			>
+			<Form method="post" action="/actions?intent=toggleMediaOwnership" replace>
 				<HiddenLocationInput />
 				<Stack>
 					<Title order={3}>Mark media as owned</Title>

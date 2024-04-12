@@ -97,10 +97,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 	return json({
 		query,
 		personId,
-		userPreferences: {
-			reviewScale: userPreferences.general.reviewScale,
-			disableReviews: userPreferences.general.disableReviews,
-		},
+		userPreferences: { reviewScale: userPreferences.general.reviewScale },
 		coreDetails: { itemDetailsHeight: coreDetails.itemDetailsHeight },
 		userDetails,
 		collections,
@@ -246,7 +243,7 @@ export default function Page() {
 									Overview
 								</Tabs.Tab>
 							) : null}
-							{!loaderData.userPreferences.disableReviews ? (
+							{loaderData.userPersonDetails.reviews.length > 0 ? (
 								<Tabs.Tab
 									value="reviews"
 									leftSection={<IconMessageCircle2 size={16} />}
@@ -407,27 +404,25 @@ export default function Page() {
 								</SimpleGrid>
 							</MediaScrollArea>
 						</Tabs.Panel>
-						{!loaderData.userPreferences.disableReviews ? (
-							<Tabs.Panel value="reviews">
-								<MediaScrollArea
-									itemDetailsHeight={loaderData.coreDetails.itemDetailsHeight}
-								>
-									<Stack>
-										{loaderData.userPersonDetails.reviews.map((r) => (
-											<ReviewItemDisplay
-												review={r}
-												key={r.id}
-												personId={loaderData.personId}
-												title={loaderData.personDetails.details.name}
-												user={loaderData.userDetails}
-												reviewScale={loaderData.userPreferences.reviewScale}
-												entityType="person"
-											/>
-										))}
-									</Stack>
-								</MediaScrollArea>
-							</Tabs.Panel>
-						) : null}
+						<Tabs.Panel value="reviews">
+							<MediaScrollArea
+								itemDetailsHeight={loaderData.coreDetails.itemDetailsHeight}
+							>
+								<Stack>
+									{loaderData.userPersonDetails.reviews.map((r) => (
+										<ReviewItemDisplay
+											review={r}
+											key={r.id}
+											personId={loaderData.personId}
+											title={loaderData.personDetails.details.name}
+											user={loaderData.userDetails}
+											reviewScale={loaderData.userPreferences.reviewScale}
+											entityType="person"
+										/>
+									))}
+								</Stack>
+							</MediaScrollArea>
+						</Tabs.Panel>
 					</Tabs>
 				</MediaDetailsLayout>
 			</Container>

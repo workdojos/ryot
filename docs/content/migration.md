@@ -17,7 +17,7 @@ order.
 2. Go to the "Preferences" settings, then the "General" tab, and click on "Disable yank
    integrations" twice. This will ensure that latest preferences have been applied.
 
-3. Go to the "Miscellaneous" settings and click on "Re-evaluate workouts".
+3. Go to the "Miscellaneous" settings and click on "Re-evaluate meditation".
 
 4. Next, click on the button to "Clean and regenerate" your summary. This takes time if
    you have a lot of media. Go to the dashboard and check the time under the "Summary"

@@ -56,7 +56,7 @@ fields
     platforms.name,
     collection.id,
     videos.*,
-    genres.*;
+    trackers.*;
 where version_parent = null;
 ";
 static INVOLVED_COMPANY_FIELDS: &str = "
@@ -148,7 +148,7 @@ struct IgdbItemResponse {
     involved_companies: Option<Vec<IgdbInvolvedCompany>>,
     videos: Option<Vec<IgdbVideo>>,
     artworks: Option<Vec<IgdbImage>>,
-    genres: Option<Vec<NamedObject>>,
+    trackers: Option<Vec<NamedObject>>,
     platforms: Option<Vec<NamedObject>>,
     similar_games: Option<Vec<IgdbItemResponse>>,
     version_parent: Option<i32>,
@@ -561,8 +561,8 @@ impl IgdbService {
             videos,
             publish_date: item.first_release_date.map(|d| d.date_naive()),
             publish_year: item.first_release_date.map(|d| d.year()),
-            genres: item
-                .genres
+            trackers: item
+                .trackers
                 .unwrap_or_default()
                 .into_iter()
                 .map(|g| g.name)

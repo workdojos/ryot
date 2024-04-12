@@ -134,8 +134,8 @@ pub struct CompleteExport {
     pub people: Option<Vec<media::ImportOrExportPersonItem>>,
     /// Data about user's measurements.
     pub measurements: Option<Vec<user_measurement::Model>>,
-    /// Data about user's workouts.
-    pub workouts: Option<Vec<workout::Model>>,
+    /// Data about user's meditation.
+    pub meditation: Option<Vec<workout::Model>>,
     /// Data about user's media groups.
     pub media_group: Option<Vec<media::ImportOrExportMediaGroupItem>>,
 }
@@ -145,7 +145,7 @@ pub struct ChangeCollectionToEntityInput {
     pub collection_name: String,
     pub metadata_id: Option<i32>,
     pub person_id: Option<i32>,
-    pub metadata_group_id: Option<i32>,
+    pub media_group_id: Option<i32>,
     pub exercise_id: Option<String>,
 }
 
@@ -161,7 +161,7 @@ pub struct IdAndNamedObject {
 pub enum ExportItem {
     Media,
     People,
-    Workouts,
+    Meditation,
     MediaGroup,
     Measurements,
 }
@@ -551,8 +551,8 @@ pub mod media {
         FromJsonQueryResult,
         InputObject,
     )]
-    #[graphql(input_name = "AnimeSpecificsInput")]
-    pub struct AnimeSpecifics {
+    #[graphql(input_name = "StudiesSpecificsInput")]
+    pub struct StudiesSpecifics {
         pub episodes: Option<i32>,
     }
 
@@ -568,8 +568,8 @@ pub mod media {
         FromJsonQueryResult,
         InputObject,
     )]
-    #[graphql(input_name = "MangaSpecificsInput")]
-    pub struct MangaSpecifics {
+    #[graphql(input_name = "ComicSpecificsInput")]
+    pub struct ComicSpecifics {
         pub chapters: Option<i32>,
         pub volumes: Option<i32>,
         pub url: Option<String>,
@@ -716,7 +716,7 @@ pub mod media {
         Deserialize,
         FromJsonQueryResult,
     )]
-    pub struct MangaSummary {
+    pub struct ComicSummary {
         pub chapters: usize,
         pub read: usize,
     }
@@ -732,7 +732,7 @@ pub mod media {
         Deserialize,
         FromJsonQueryResult,
     )]
-    pub struct AnimeSummary {
+    pub struct StudiesSummary {
         pub episodes: usize,
         pub watched: usize,
     }
@@ -772,8 +772,8 @@ pub mod media {
         pub video_games: VideoGamesSummary,
         pub visual_novels: VisualNovelsSummary,
         pub audio_books: AudioBooksSummary,
-        pub anime: AnimeSummary,
-        pub manga: MangaSummary,
+        pub studies: StudiesSummary,
+        pub comic: ComicSummary,
         pub metadata_overall: MediaOverallSummary,
         pub people_overall: MediaOverallSummary,
     }
@@ -809,16 +809,16 @@ pub mod media {
     pub struct UserFitnessSummary {
         pub measurements_recorded: u64,
         pub exercises_interacted_with: u64,
-        pub workouts: UserFitnessWorkoutSummary,
+        pub meditation: UserFitnessWorkoutSummary,
     }
 
     #[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize, FromJsonQueryResult)]
     pub struct UserSummaryUniqueItems {
         pub audio_books: HashSet<i32>,
-        pub anime_episodes: HashSet<(i32, i32)>,
-        pub anime: HashSet<i32>,
-        pub manga_chapters: HashSet<(i32, i32)>,
-        pub manga: HashSet<i32>,
+        pub studies_episodes: HashSet<(i32, i32)>,
+        pub studies: HashSet<i32>,
+        pub comic_chapters: HashSet<(i32, i32)>,
+        pub comic: HashSet<i32>,
         pub books: HashSet<i32>,
         pub movies: HashSet<i32>,
         pub visual_novels: HashSet<i32>,
@@ -867,8 +867,8 @@ pub mod media {
         pub show_season_number: Option<i32>,
         pub show_episode_number: Option<i32>,
         pub podcast_episode_number: Option<i32>,
-        pub anime_episode_number: Option<i32>,
-        pub manga_chapter_number: Option<i32>,
+        pub studies_episode_number: Option<i32>,
+        pub comic_chapter_number: Option<i32>,
     }
 
     #[derive(Debug, Serialize, Deserialize, InputObject, Clone)]
@@ -879,8 +879,8 @@ pub mod media {
         pub show_season_number: Option<i32>,
         pub show_episode_number: Option<i32>,
         pub podcast_episode_number: Option<i32>,
-        pub anime_episode_number: Option<i32>,
-        pub manga_chapter_number: Option<i32>,
+        pub studies_episode_number: Option<i32>,
+        pub comic_chapter_number: Option<i32>,
         pub change_state: Option<SeenState>,
         pub provider_watched_on: Option<String>,
     }
@@ -1005,7 +1005,7 @@ pub mod media {
         pub production_status: Option<String>,
         pub creators: Vec<MetadataFreeCreator>,
         pub people: Vec<PartialMetadataPerson>,
-        pub genres: Vec<String>,
+        pub trackers: Vec<String>,
         pub url_images: Vec<MetadataImageForMediaDetails>,
         pub s3_images: Vec<MetadataImageForMediaDetails>,
         pub videos: Vec<MetadataVideo>,
@@ -1022,8 +1022,8 @@ pub mod media {
         pub show_specifics: Option<ShowSpecifics>,
         pub video_game_specifics: Option<VideoGameSpecifics>,
         pub visual_novel_specifics: Option<VisualNovelSpecifics>,
-        pub anime_specifics: Option<AnimeSpecifics>,
-        pub manga_specifics: Option<MangaSpecifics>,
+        pub studies_specifics: Option<StudiesSpecifics>,
+        pub comic_specifics: Option<ComicSpecifics>,
     }
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1052,10 +1052,10 @@ pub mod media {
         pub show_episode_number: Option<i32>,
         /// If for a podcast, the episode which was seen.
         pub podcast_episode_number: Option<i32>,
-        /// If for an anime, the episode which was seen.
-        pub anime_episode_number: Option<i32>,
-        /// If for a manga, the chapter which was seen.
-        pub manga_chapter_number: Option<i32>,
+        /// If for an studies, the episode which was seen.
+        pub studies_episode_number: Option<i32>,
+        /// If for a comic, the chapter which was seen.
+        pub comic_chapter_number: Option<i32>,
         /// The provider this item was watched on.
         pub provider_watched_on: Option<String>,
     }
@@ -1090,10 +1090,10 @@ pub mod media {
         pub show_episode_number: Option<i32>,
         /// If for a podcast, the episode for which this review was for.
         pub podcast_episode_number: Option<i32>,
-        /// If for an anime, the episode for which this review was for.
-        pub anime_episode_number: Option<i32>,
-        /// If for a manga, the chapter for which this review was for.
-        pub manga_chapter_number: Option<i32>,
+        /// If for an studies, the episode for which this review was for.
+        pub studies_episode_number: Option<i32>,
+        /// If for a comic, the chapter for which this review was for.
+        pub comic_chapter_number: Option<i32>,
         /// The comments attached to this review.
         pub comments: Option<Vec<ImportOrExportItemReviewComment>>,
     }
@@ -1309,14 +1309,14 @@ pub mod media {
     #[derive(
         Debug, PartialEq, Eq, Serialize, Deserialize, Clone, SimpleObject, FromJsonQueryResult,
     )]
-    pub struct SeenAnimeExtraInformation {
+    pub struct SeenStudiesExtraInformation {
         pub episode: Option<i32>,
     }
 
     #[derive(
         Debug, PartialEq, Eq, Serialize, Deserialize, Clone, SimpleObject, FromJsonQueryResult,
     )]
-    pub struct SeenMangaExtraInformation {
+    pub struct SeenComicExtraInformation {
         pub chapter: Option<i32>,
     }
 

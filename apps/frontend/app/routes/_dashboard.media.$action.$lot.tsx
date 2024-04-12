@@ -9,7 +9,6 @@ import {
 	Group,
 	Menu,
 	Modal,
-	Pagination,
 	Select,
 	Stack,
 	Tabs,
@@ -61,6 +60,7 @@ import { zx } from "zodix";
 import {
 	AddEntityToCollectionModal,
 	ApplicationGrid,
+	ApplicationPagination,
 	DebouncedSearchInput,
 } from "~/components/common";
 import {
@@ -101,10 +101,10 @@ const metadataMapping = {
 	[MediaLot.Book]: [MediaSource.Openlibrary, MediaSource.GoogleBooks],
 	[MediaLot.Podcast]: [MediaSource.Itunes, MediaSource.Listennotes],
 	[MediaLot.VideoGame]: [MediaSource.Igdb],
-	[MediaLot.Anime]: [MediaSource.Anilist, MediaSource.Mal],
-	[MediaLot.Manga]: [
+	[MediaLot.Studies]: [MediaSource.Anilist, MediaSource.Mal],
+	[MediaLot.Comic]: [
 		MediaSource.Anilist,
-		MediaSource.MangaUpdates,
+		MediaSource.ComicUpdates,
 		MediaSource.Mal,
 	],
 	[MediaLot.Movie]: [MediaSource.Tmdb],
@@ -411,8 +411,7 @@ export default function Page() {
 						)}
 						{loaderData.mediaList.list ? (
 							<Center>
-								<Pagination
-									size="sm"
+								<ApplicationPagination
 									value={loaderData.numPage}
 									onChange={(v) => setP("page", v.toString())}
 									total={Math.ceil(
@@ -481,8 +480,7 @@ export default function Page() {
 						)}
 						{loaderData.mediaSearch.search ? (
 							<Center>
-								<Pagination
-									size="sm"
+								<ApplicationPagination
 									value={loaderData.numPage}
 									onChange={(v) => setP("page", v.toString())}
 									total={Math.ceil(

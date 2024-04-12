@@ -148,7 +148,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 				submission,
 				await getAuthorizationHeader(request),
 			);
-			return redirectWithToast($path("/fitness/workouts/list"), {
+			return redirectWithToast($path("/fitness/meditation/list"), {
 				type: "success",
 				message: "Workout deleted successfully",
 			});
@@ -268,7 +268,7 @@ export default function Page() {
 							</Text>
 							<Anchor
 								component={Link}
-								to={$path("/fitness/workouts/:id", {
+								to={$path("/fitness/meditation/:id", {
 									id: loaderData.repeatedWorkout.id,
 								})}
 							>

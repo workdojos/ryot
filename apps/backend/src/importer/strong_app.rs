@@ -57,7 +57,7 @@ pub async fn import(
     } else {
         return Err("Could not determine delimiter".into());
     };
-    let mut workouts = vec![];
+    let mut meditation = vec![];
     let mut entries_reader = ReaderBuilder::new()
         .delimiter(delimiter)
         .from_reader(file_string.as_bytes())
@@ -125,7 +125,7 @@ pub async fn import(
             } else {
                 Duration::try_seconds(0).unwrap()
             };
-            workouts.push(UserWorkoutInput {
+            meditation.push(UserWorkoutInput {
                 id: None,
                 repeated_from: None,
                 name: entry.workout_name,
@@ -139,7 +139,7 @@ pub async fn import(
         }
     }
     Ok(ImportResult {
-        workouts,
+        meditation,
         ..Default::default()
     })
 }

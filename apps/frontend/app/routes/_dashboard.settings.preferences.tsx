@@ -146,13 +146,7 @@ export default function Page() {
 				<Affix position={{ bottom: rem(40), right: rem(30) }}>
 					<Form method="post" action={`?defaultTab=${defaultTab}`} replace>
 						{toUpdatePreferences.map((pref) => (
-							<input
-								key={pref[0]}
-								hidden
-								name={pref[0]}
-								value={pref[1]}
-								readOnly
-							/>
+							<input key={pref[0]} hidden name={pref[0]} value={pref[1]} />
 						))}
 						<Button
 							color="green"
@@ -293,7 +287,6 @@ export default function Page() {
 										"disableYankIntegrations",
 										"disableNavigationAnimation",
 										"disableVideos",
-										"disableReviews",
 										"disableWatchProviders",
 									] as const
 								).map((name) => (
@@ -314,7 +307,6 @@ export default function Page() {
 												() => "Disable navigation animation",
 											)
 											.with("disableVideos", () => "Do not display videos")
-											.with("disableReviews", () => "Do not display reviews")
 											.with(
 												"disableWatchProviders",
 												() => 'Do not display the "Watch On" tab',
@@ -405,7 +397,7 @@ export default function Page() {
 											.with(
 												MediaStateChanged.MetadataChaptersOrEpisodesChanged,
 												() =>
-													"Number of chapters/episodes changes for manga/anime",
+													"Number of chapters/episodes changes for comic/studies",
 											)
 											.with(
 												MediaStateChanged.ReviewPosted,

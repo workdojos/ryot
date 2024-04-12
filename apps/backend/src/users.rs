@@ -40,10 +40,10 @@ impl Default for UserNotificationsPreferences {
 )]
 pub struct UserMediaFeaturesEnabledPreferences {
     pub enabled: bool,
-    pub anime: bool,
+    pub studies: bool,
     pub audio_book: bool,
     pub book: bool,
-    pub manga: bool,
+    pub comic: bool,
     pub movie: bool,
     pub podcast: bool,
     pub show: bool,
@@ -51,17 +51,17 @@ pub struct UserMediaFeaturesEnabledPreferences {
     pub visual_novel: bool,
     pub people: bool,
     pub groups: bool,
-    pub genres: bool,
+    pub trackers: bool,
 }
 
 impl Default for UserMediaFeaturesEnabledPreferences {
     fn default() -> Self {
         Self {
             enabled: true,
-            anime: true,
+            studies: true,
             audio_book: true,
             book: true,
-            manga: true,
+            comic: true,
             movie: true,
             podcast: true,
             show: true,
@@ -69,7 +69,7 @@ impl Default for UserMediaFeaturesEnabledPreferences {
             visual_novel: true,
             people: true,
             groups: true,
-            genres: true,
+            trackers: true,
         }
     }
 }
@@ -97,7 +97,7 @@ impl Default for UserOthersFeaturesEnabledPreferences {
 pub struct UserFitnessFeaturesEnabledPreferences {
     pub enabled: bool,
     pub measurements: bool,
-    pub workouts: bool,
+    pub meditation: bool,
 }
 
 impl Default for UserFitnessFeaturesEnabledPreferences {
@@ -105,7 +105,7 @@ impl Default for UserFitnessFeaturesEnabledPreferences {
         Self {
             enabled: true,
             measurements: true,
-            workouts: true,
+            meditation: true,
         }
     }
 }
@@ -294,7 +294,6 @@ pub struct UserGeneralPreferences {
     pub disable_videos: bool,
     pub disable_watch_providers: bool,
     pub watch_providers: Vec<String>,
-    pub disable_reviews: bool,
 }
 
 impl Default for UserGeneralPreferences {
@@ -324,7 +323,6 @@ impl Default for UserGeneralPreferences {
             disable_videos: false,
             disable_watch_providers: false,
             watch_providers: WATCH_PROVIDERS.into_iter().map(|s| s.to_owned()).collect(),
-            disable_reviews: false,
         }
     }
 }

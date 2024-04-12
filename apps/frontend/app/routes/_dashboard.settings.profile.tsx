@@ -44,8 +44,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 	);
 	return json({ status: "success", submission } as const, {
 		headers: await createToastHeaders({
-			message:
-				"Profile updated. Please login again for changes to take effect.",
+			message: "Profile updated",
 		}),
 	});
 };
@@ -77,19 +76,19 @@ export default function Page() {
 							}
 							defaultValue={loaderData.userDetails.name}
 						/>
+						<TextInput
+							label="Email"
+							name="email"
+							autoFocus
+							defaultValue={loaderData.userDetails.email ?? undefined}
+						/>
 						<PasswordInput
 							label="Password"
 							name="password"
-							disabled={
-								Boolean(loaderData.userDetails.isDemo) ||
-								Boolean(loaderData.userDetails.oidcIssuerId)
-							}
+							disabled={Boolean(loaderData.userDetails.isDemo)}
 							description={
-								loaderData.userDetails.oidcIssuerId
-									? "Not applicable since this user was created via OIDC"
-									: loaderData.userDetails.isDemo
-									  ? "Password can not be changed for the demo user"
-									  : undefined
+								loaderData.userDetails.isDemo &&
+								"Password can not be changed for the demo user"
 							}
 						/>
 						<Button

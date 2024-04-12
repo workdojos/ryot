@@ -8,7 +8,6 @@ import {
 	Container,
 	Flex,
 	Group,
-	Pagination,
 	Stack,
 	Text,
 	Title,
@@ -35,7 +34,10 @@ import {
 import type { ReactElement } from "react";
 import { z } from "zod";
 import { zx } from "zodix";
-import { DebouncedSearchInput } from "~/components/common";
+import {
+	ApplicationPagination,
+	DebouncedSearchInput,
+} from "~/components/common";
 import { getSetStatisticsTextToDisplay } from "~/components/fitness";
 import { dayjsLib } from "~/lib/generals";
 import { getWorkoutStarter, useSearchParam } from "~/lib/hooks";
@@ -80,7 +82,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const meta: MetaFunction = () => {
-	return [{ title: "Workouts | Ryot" }];
+	return [{ title: "Meditation | Ryot" }];
 };
 
 export default function Page() {
@@ -92,7 +94,7 @@ export default function Page() {
 		<Container size="xs">
 			<Stack>
 				<Flex align="center" gap="md">
-					<Title>Workouts</Title>
+					<Title>Meditation</Title>
 					<ActionIcon
 						color="green"
 						variant="outline"
@@ -104,7 +106,7 @@ export default function Page() {
 					</ActionIcon>
 				</Flex>
 				<DebouncedSearchInput
-					placeholder="Search for workouts"
+					placeholder="Search for meditation"
 					initialValue={loaderData.query.query}
 				/>
 				{loaderData.userWorkoutList.items.length > 0 ? (
@@ -156,7 +158,7 @@ export default function Page() {
 										</Accordion.Control>
 										<Anchor
 											component={Link}
-											to={$path("/fitness/workouts/:id", { id: workout.id })}
+											to={$path("/fitness/meditation/:id", { id: workout.id })}
 											pr="md"
 										>
 											<Text fz="xs" ta="right" visibleFrom="sm">
@@ -191,11 +193,10 @@ export default function Page() {
 						</Accordion>
 					</>
 				) : (
-					<Text>No workouts found</Text>
+					<Text>No meditation found</Text>
 				)}
 				<Center>
-					<Pagination
-						size="sm"
+					<ApplicationPagination
 						value={loaderData.query.page}
 						onChange={(v) => setP("page", v.toString())}
 						total={Math.ceil(

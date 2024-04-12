@@ -30,7 +30,7 @@ static FILE: &str = "listennotes.json";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Settings {
-    genres: HashMap<i32, String>,
+    trackers: HashMap<i32, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -233,10 +233,10 @@ impl ListennotesService {
                 role: "Publishing".to_owned(),
                 image: None,
             })),
-            genres: podcast_data
+            trackers: podcast_data
                 .genre_ids
                 .into_iter()
-                .filter_map(|g| self.settings.genres.get(&g).cloned())
+                .filter_map(|g| self.settings.trackers.get(&g).cloned())
                 .unique()
                 .collect(),
             url_images: Vec::from_iter(podcast_data.image.map(|a| MetadataImageForMediaDetails {
@@ -270,15 +270,15 @@ async fn get_client_config(url: &str, api_token: &str) -> (Client, Settings) {
     let settings = if !path.exists() {
         #[derive(Debug, Serialize, Deserialize, Default)]
         struct GenreResponse {
-            genres: Vec<IdAndNamedObject>,
+            trackers: Vec<IdAndNamedObject>,
         }
-        let mut rsp = client.get("genres").await.unwrap();
+        let mut rsp = client.get("trackers").await.unwrap();
         let data: GenreResponse = rsp.body_json().await.unwrap_or_default();
-        let mut genres = HashMap::new();
-        for genre in data.genres {
-            genres.insert(genre.id, genre.name);
+        let mut trackers = HashMap::new();
+        for genre in data.trackers {
+            trackers.insert(genre.id, genre.name);
         }
-        let settings = Settings { genres };
+        let settings = Settings { trackers };
         let data_to_write = serde_json::to_string(&settings);
         fs::write(path, data_to_write.unwrap()).unwrap();
         settings

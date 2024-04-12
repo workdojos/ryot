@@ -62,7 +62,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			: undefined,
 	};
 	input.specifics = undefined;
-	input.genres = input.genres?.split(", ");
+	input.trackers = input.trackers?.split(", ");
 	input.creators = input.creators?.split(", ");
 	const { createCustomMetadata } = await gqlClient.request(
 		CreateCustomMetadataDocument,
@@ -83,7 +83,7 @@ const schema = z.object({
 	description: optionalString,
 	isNsfw: z.boolean().optional(),
 	publishYear: z.number().optional(),
-	genres: optionalString,
+	trackers: optionalString,
 	creators: optionalString,
 	specifics: optionalString,
 });
@@ -165,9 +165,9 @@ export default function Page() {
 						name="creators"
 					/>
 					<TextInput
-						label="Genres"
+						label="Trackers"
 						placeholder="Comma separated values"
-						name="genres"
+						name="trackers"
 					/>
 					<Button type="submit">Create</Button>
 				</Stack>

@@ -33,14 +33,13 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Genre::Name).text().not_null())
+                    .col(ColumnDef::new(Genre::Name).text().unique_key().not_null())
                     .to_owned(),
             )
             .await?;
         manager
             .create_index(
                 Index::create()
-                    .unique()
                     .name("genre_name_index")
                     .table(Genre::Table)
                     .col(Genre::Name)

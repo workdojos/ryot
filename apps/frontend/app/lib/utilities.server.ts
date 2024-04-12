@@ -122,9 +122,9 @@ export function combineHeaders(
 export type ApplicationUser = {
 	__typename: "User";
 	id: number;
+	email?: string | null | undefined;
 	name: string;
 	lot: UserLot;
-	oidcIssuerId?: string;
 	isDemo: boolean;
 };
 
@@ -137,8 +137,8 @@ export const MetadataSpecificsSchema = z.object({
 	showSeasonNumber: emptyNumberString,
 	showEpisodeNumber: emptyNumberString,
 	podcastEpisodeNumber: emptyNumberString,
-	animeEpisodeNumber: emptyNumberString,
-	mangaChapterNumber: emptyNumberString,
+	studiesEpisodeNumber: emptyNumberString,
+	comicChapterNumber: emptyNumberString,
 });
 
 export const processSubmission = <Schema extends ZodTypeAny>(

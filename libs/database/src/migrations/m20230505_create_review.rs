@@ -32,8 +32,8 @@ pub enum Review {
     Comments,
     ShowExtraInformation,
     PodcastExtraInformation,
-    AnimeExtraInformation,
-    MangaExtraInformation,
+    StudiesExtraInformation,
+    ComicExtraInformation,
 }
 
 #[async_trait::async_trait]
@@ -78,8 +78,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Review::Comments).json_binary().not_null())
                     .col(ColumnDef::new(Review::ShowExtraInformation).json_binary())
                     .col(ColumnDef::new(Review::PodcastExtraInformation).json_binary())
-                    .col(ColumnDef::new(Review::AnimeExtraInformation).json_binary())
-                    .col(ColumnDef::new(Review::MangaExtraInformation).json_binary())
+                    .col(ColumnDef::new(Review::StudiesExtraInformation).json_binary())
+                    .col(ColumnDef::new(Review::ComicExtraInformation).json_binary())
                     .foreign_key(
                         ForeignKey::create()
                             .name("review_to_user_foreign_key")

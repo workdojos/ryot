@@ -66,7 +66,7 @@ struct ITunesItem {
     release_date: Option<ChronoDateTimeUtc>,
     description: Option<String>,
     artist_name: Option<String>,
-    genres: Option<Vec<Genre>>,
+    trackers: Option<Vec<Genre>>,
     track_count: Option<usize>,
     track_id: Option<i64>,
     artwork_url_100: Option<String>,
@@ -108,8 +108,8 @@ impl MediaProvider for ITunesService {
                 image: None,
             })
             .collect();
-        let genres = ht
-            .genres
+        let trackers = ht
+            .trackers
             .clone()
             .unwrap_or_default()
             .into_iter()
@@ -172,7 +172,7 @@ impl MediaProvider for ITunesService {
             description,
             url_images,
             creators,
-            genres,
+            trackers,
             podcast_specifics: Some(PodcastSpecifics {
                 episodes,
                 total_episodes,

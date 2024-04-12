@@ -151,7 +151,7 @@ impl ExerciseQuery {
         service.exercises_list(user_id, input).await
     }
 
-    /// Get a paginated list of workouts done by the user.
+    /// Get a paginated list of meditation done by the user.
     async fn user_workout_list(
         &self,
         gql_ctx: &Context<'_>,
@@ -390,7 +390,7 @@ impl ExerciseService {
                 .exercise_extra_information
                 .clone()
                 .unwrap_or_default();
-            let workouts = Workout::find()
+            let meditation = Workout::find()
                 .filter(
                     workout::Column::Id.is_in(
                         user_to_exercise_extra_information
@@ -403,7 +403,7 @@ impl ExerciseService {
                 .order_by_desc(workout::Column::EndTime)
                 .all(&self.db)
                 .await?;
-            let history = workouts
+            let history = meditation
                 .into_iter()
                 .map(|w| {
                     let element = user_to_exercise_extra_information
@@ -814,13 +814,13 @@ impl ExerciseService {
             .filter(user_to_entity::Column::ExerciseId.is_not_null())
             .exec(&self.db)
             .await?;
-        let workouts = Workout::find()
+        let meditation = Workout::find()
             .filter(workout::Column::UserId.eq(user_id))
             .order_by_asc(workout::Column::EndTime)
             .all(&self.db)
             .await?;
-        let total = workouts.len();
-        for (idx, workout) in workouts.into_iter().enumerate() {
+        let total = meditation.len();
+        for (idx, workout) in meditation.into_iter().enumerate() {
             workout.clone().delete(&self.db).await?;
             let workout_input = self.db_workout_to_workout_input(workout);
             self.create_user_workout(user_id, workout_input).await?;
@@ -848,33 +848,6 @@ impl ExerciseService {
             .start_time;
             let mut association: user_to_entity::ActiveModel = association.into();
             association.last_updated_on = ActiveValue::Set(workout_date);
-            association.update(&self.db).await?;
-        }
-        let mut all_user_to_entity = UserToEntity::find()
-            .filter(user_to_entity::Column::ExerciseId.is_not_null())
-            .stream(&self.db)
-            .await?;
-        while let Some(association) = all_user_to_entity.try_next().await? {
-            let first_workout_in_history = association
-                .exercise_extra_information
-                .clone()
-                .unwrap()
-                .history
-                .last()
-                .cloned()
-                .unwrap()
-                .workout_id;
-            let time_performed = Workout::find()
-                .select_only()
-                .column(workout::Column::StartTime)
-                .filter(workout::Column::Id.eq(first_workout_in_history))
-                .into_tuple::<DateTimeUtc>()
-                .one(&self.db)
-                .await
-                .unwrap()
-                .unwrap();
-            let mut association: user_to_entity::ActiveModel = association.into();
-            association.created_on = ActiveValue::Set(time_performed);
             association.update(&self.db).await?;
         }
         Ok(())

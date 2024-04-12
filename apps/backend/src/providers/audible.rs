@@ -472,7 +472,7 @@ impl AudibleService {
             description,
             people,
             creators,
-            genres: item
+            trackers: item
                 .category_ladders
                 .unwrap_or_default()
                 .into_iter()

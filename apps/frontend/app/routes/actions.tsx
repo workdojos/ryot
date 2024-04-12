@@ -60,7 +60,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			returnData = { commitMedia: commitMetadata };
 		})
 		.with("uploadWorkoutAsset", async () => {
-			const uploader = s3FileUploader("workouts");
+			const uploader = s3FileUploader("meditation");
 			const formData = await unstable_parseMultipartFormData(request, uploader);
 			const fileKey = formData.get("file");
 			returnData = { key: fileKey };
@@ -298,7 +298,7 @@ const getChangeCollectionToEntityVariables = (formData: FormData) => {
 		submission.entityLot === EntityLot.Media
 			? Number(submission.entityId)
 			: undefined;
-	const metadataGroupId =
+	const mediaGroupId =
 		submission.entityLot === EntityLot.MediaGroup
 			? Number(submission.entityId)
 			: undefined;
@@ -312,6 +312,6 @@ const getChangeCollectionToEntityVariables = (formData: FormData) => {
 			: undefined;
 	return [
 		submission,
-		{ metadataId, metadataGroupId, exerciseId, personId },
+		{ metadataId, mediaGroupId, exerciseId, personId },
 	] as const;
 };

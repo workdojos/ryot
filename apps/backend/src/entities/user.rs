@@ -52,9 +52,9 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub name: String,
+    pub email: Option<String>,
     #[graphql(skip)]
-    pub password: Option<String>,
-    pub oidc_issuer_id: Option<String>,
+    pub password: String,
     pub is_demo: Option<bool>,
     pub lot: UserLot,
     #[graphql(skip)]
@@ -139,15 +139,13 @@ impl ActiveModelBehavior for ActiveModel {
         C: ConnectionTrait,
     {
         if self.password.is_set() {
-            let cloned_password = self.password.clone().unwrap();
-            if let Some(password) = cloned_password {
-                let salt = SaltString::generate(&mut OsRng);
-                let password_hash = get_hasher()
-                    .hash_password(password.as_bytes(), &salt)
-                    .map_err(|_| DbErr::Custom("Unable to hash password".to_owned()))?
-                    .to_string();
-                self.password = ActiveValue::Set(Some(password_hash));
-            }
+            let password = self.password.unwrap();
+            let salt = SaltString::generate(&mut OsRng);
+            let password_hash = get_hasher()
+                .hash_password(password.as_bytes(), &salt)
+                .map_err(|_| DbErr::Custom("Unable to hash password".to_owned()))?
+                .to_string();
+            self.password = ActiveValue::Set(password_hash);
         }
         Ok(self)
     }

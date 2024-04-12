@@ -173,7 +173,7 @@ export const addExerciseToWorkout = async (
 	}
 	const finishedDraft = finishDraft(draft);
 	setCurrentWorkout(finishedDraft);
-	navigate($path("/fitness/workouts/current"));
+	navigate($path("/fitness/meditation/current"));
 };
 
 export const currentWorkoutToCreateWorkoutInput = (

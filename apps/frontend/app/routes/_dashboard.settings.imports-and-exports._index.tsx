@@ -104,9 +104,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 				.with(ImportSource.Goodreads, () => ({
 					goodreads: processSubmission(formData, goodreadsImportFormSchema),
 				}))
-				.with(ImportSource.Imdb, () => ({
-					imdb: processSubmission(formData, goodreadsImportFormSchema),
-				}))
 				.with(ImportSource.Trakt, () => ({
 					trakt: processSubmission(formData, traktImportFormSchema),
 				}))
@@ -210,8 +207,8 @@ const strongAppImportFormSchema = z.object({
 const jsonImportFormSchema = z.object({ export: z.string() });
 
 const malImportFormSchema = z.object({
-	animePath: z.string(),
-	mangaPath: z.string(),
+	studiesPath: z.string(),
+	comicPath: z.string(),
 });
 
 const deployExportForm = z.object({
@@ -253,7 +250,7 @@ export default function Page() {
 											`${loaderData.coreDetails.docsLink}/importing.html`,
 											match(deployImportSource)
 												.with(ImportSource.Goodreads, () => "goodreads")
-												.with(ImportSource.Mal, () => "myanimelist")
+												.with(ImportSource.Mal, () => "mystudieslist")
 												.with(ImportSource.MediaTracker, () => "mediatracker")
 												.with(ImportSource.Movary, () => "movary")
 												.with(ImportSource.StoryGraph, () => "storygraph")
@@ -263,7 +260,6 @@ export default function Page() {
 													ImportSource.Audiobookshelf,
 													() => "audiobookshelf",
 												)
-												.with(ImportSource.Imdb, () => "imdb")
 												.with(
 													ImportSource.MediaJson,
 													ImportSource.PeopleJson,
@@ -325,7 +321,7 @@ export default function Page() {
 													/>
 												</>
 											))
-											.with(ImportSource.Goodreads, ImportSource.Imdb, () => (
+											.with(ImportSource.Goodreads, () => (
 												<>
 													<FileInput
 														label="CSV file"
@@ -380,14 +376,14 @@ export default function Page() {
 											.with(ImportSource.Mal, () => (
 												<>
 													<FileInput
-														label="Anime export file"
+														label="Studies export file"
 														required
-														name="animePath"
+														name="studiesPath"
 													/>
 													<FileInput
-														label="Manga export file"
+														label="Comic export file"
 														required
-														name="mangaPath"
+														name="comicPath"
 													/>
 												</>
 											))

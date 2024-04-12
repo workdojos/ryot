@@ -14,9 +14,6 @@ You can go to the reports page by clicking on "Reports" link on the imports page
   you might have to manually import some data from your previous provider.
 - You can see description of the importing steps by going to `<your instance
   url>/backend/graphql`, and then searching for `ImportFailStep` enum in search bar.
-- I recommend turning on debug logging for the duration of the import using the
-  `RUST_LOG=ryot=debug` environment variable. This will help you help you see import
-  progress.
 
 ## Goodreads
 
@@ -61,16 +58,16 @@ along with ratings, history, and comments.
 - Export "history.csv", "watchlist.csv" and "ratings.csv".
 - Upload these files in the input.
 
-## MyAnimeList
+## MyStudiesList
 
-Manga and Anime can be imported from [MyAnimeList](https://myanimelist.net)
+Comic and Studies can be imported from [MyStudiesList](https://mystudieslist.net)
 along with ratings, history and progress.
 
 ### Steps
 
-- Login to your MyAnimeList account and go to
-  [exports](http://myanimelist.net/panel.php?go=export).
-- Export your anime and manga history.
+- Login to your MyStudiesList account and go to
+  [exports](http://mystudieslist.net/panel.php?go=export).
+- Export your studies and comic history.
 - Upload these files in the input.
 
 ## StoryGraph
@@ -94,7 +91,7 @@ translates "Read Status" in the following manner:
 
 ## Strong App
 
-You can import your completed workouts from [Strong](https://www.strong.app/) app. Make sure
+You can import your completed meditation from [Strong](https://www.strong.app/) app. Make sure
 you do the import process on a desktop/laptop since the process needs to have multiple tabs
 open at once.
 
@@ -133,17 +130,6 @@ their ratings, history, comments and lists. A few points to note.
   going to your profile page, and checking the URL.
 - Enter this username in the input.
 
-## IMDb
-
-You can import your watchlist from [IMDb](https://www.imdb.com). They will be added to
-the "Watchlist" collection.
-
-### Steps
-
-- Go to your account and select your watchlist.
-- Go the bottom and click on the "Export this list" button.
-- Upload the csv file in the input.
-
 ## Audiobookshelf
 
 !!! warning
@@ -173,7 +159,7 @@ tool. You can find all the necessary steps [here](https://github.com/SirMartin/T
 
 ## JSON Files
 
-The "Media Json", "Measurements Json", "People Json", "Media Group Json" and "Workouts
+The "Media Json", "Measurements Json", "People Json", "Media Group Json" and "Meditation
 Json" importers can be used to import data from a generic JSON file. The import format
 required is described in the [exporting](guides/exporting.md#type-definition)
 documentation.

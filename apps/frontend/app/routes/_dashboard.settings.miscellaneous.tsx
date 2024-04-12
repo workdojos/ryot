@@ -145,10 +145,10 @@ export default function Page() {
 						</Stack>
 						<Stack>
 							<Box>
-								<Title order={4}>Re-evaluate workouts</Title>
+								<Title order={4}>Re-evaluate meditation</Title>
 								<Text>
-									Re-evaluate all workouts. This may be useful if exercises done
-									during a workout have changed or workouts have been edited or
+									Re-evaluate all meditation. This may be useful if exercises done
+									during a workout have changed or meditation have been edited or
 									deleted.
 								</Text>
 							</Box>
@@ -157,7 +157,7 @@ export default function Page() {
 								name="jobName"
 								value={BackgroundJob.EvaluateWorkouts}
 							>
-								Re-evaluate workouts
+								Re-evaluate meditation
 							</Button>
 						</Stack>
 						<Stack>

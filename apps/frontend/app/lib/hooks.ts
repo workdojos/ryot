@@ -48,7 +48,7 @@ export function getWorkoutStarter() {
 			expires: 2,
 			sameSite: "Strict",
 		});
-		navigate($path("/fitness/workouts/current"));
+		navigate($path("/fitness/meditation/current"));
 	};
 	return fn;
 }

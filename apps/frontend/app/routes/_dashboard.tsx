@@ -95,9 +95,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 					href: $path("/media/people/:action", { action: "list" }),
 			  }
 			: undefined,
-		userPreferences.featuresEnabled.media.genres
+		userPreferences.featuresEnabled.media.trackers
 			? {
-					label: "Genres",
+					label: "Trackers",
 					href: $path("/media/genre/list"),
 			  }
 			: undefined,

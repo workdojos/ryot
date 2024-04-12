@@ -174,11 +174,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 			watchProvidersDisabled: userPreferences.general.disableWatchProviders,
 			peopleEnabled: userPreferences.featuresEnabled.media.people,
 			groupsEnabled: userPreferences.featuresEnabled.media.groups,
-			genresEnabled: userPreferences.featuresEnabled.media.genres,
+			genresEnabled: userPreferences.featuresEnabled.media.trackers,
 			watchProviders: userPreferences.general.watchProviders,
-			disableReviews: userPreferences.general.disableReviews,
 		},
-		coreDetails: { itemDetailsHeight: coreDetails.itemDetailsHeight },
+		coreDetails: {
+			itemDetailsHeight: coreDetails.itemDetailsHeight,
+			reviewsDisabled: coreDetails.reviewsDisabled,
+		},
 		userDetails,
 		metadataId,
 		mediaMainDetails,
@@ -277,8 +279,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 				showSeasonNumber: submission.showSeasonNumber,
 				showEpisodeNumber: submission.showEpisodeNumber,
 				podcastEpisodeNumber: submission.podcastEpisodeNumber,
-				animeEpisodeNumber: submission.animeEpisodeNumber,
-				mangaChapterNumber: submission.mangaChapterNumber,
+				studiesEpisodeNumber: submission.studiesEpisodeNumber,
+				comicChapterNumber: submission.comicChapterNumber,
 				providerWatchedOn: submission.providerWatchedOn,
 			};
 			let needsFinalUpdate = true;
@@ -289,26 +291,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 			const podcastSpecifics = podcastSpecificsSchema.parse(
 				JSON.parse(submission.podcastSpecifics || "[]"),
 			);
-			if (submission.metadataLot === MediaLot.Anime) {
-				if (submission.animeEpisodeNumber) {
-					if (submission.animeAllEpisodesBefore) {
-						for (let i = 1; i <= submission.animeEpisodeNumber; i++) {
+			if (submission.metadataLot === MediaLot.Studies) {
+				if (submission.studiesEpisodeNumber) {
+					if (submission.studiesAllEpisodesBefore) {
+						for (let i = 1; i <= submission.studiesEpisodeNumber; i++) {
 							updates.push({
 								...variables,
-								animeEpisodeNumber: i,
+								studiesEpisodeNumber: i,
 							});
 						}
 						needsFinalUpdate = false;
 					}
 				}
 			}
-			if (submission.metadataLot === MediaLot.Manga) {
-				if (submission.mangaChapterNumber) {
-					if (submission.mangaAllChaptersBefore) {
-						for (let i = 1; i <= submission.mangaChapterNumber; i++) {
+			if (submission.metadataLot === MediaLot.Comic) {
+				if (submission.comicChapterNumber) {
+					if (submission.comicAllChaptersBefore) {
+						for (let i = 1; i <= submission.comicChapterNumber; i++) {
 							updates.push({
 								...variables,
-								mangaChapterNumber: i,
+								comicChapterNumber: i,
 							});
 						}
 						needsFinalUpdate = false;
@@ -428,8 +430,8 @@ const progressUpdateSchema = z
 		onlySeason: zx.BoolAsString.optional(),
 		completeShow: zx.BoolAsString.optional(),
 		completePodcast: zx.BoolAsString.optional(),
-		animeAllEpisodesBefore: zx.CheckboxAsString.optional(),
-		mangaAllChaptersBefore: zx.CheckboxAsString.optional(),
+		studiesAllEpisodesBefore: zx.CheckboxAsString.optional(),
+		comicAllChaptersBefore: zx.CheckboxAsString.optional(),
 		providerWatchedOn: z.string().optional(),
 	})
 	.merge(metadataIdSchema)
@@ -611,12 +613,12 @@ export default function Page() {
 										`${mediaAdditionalDetails.bookSpecifics.pages} pages`,
 									mediaAdditionalDetails.podcastSpecifics?.totalEpisodes &&
 										`${mediaAdditionalDetails.podcastSpecifics.totalEpisodes} episodes`,
-									mediaAdditionalDetails.animeSpecifics?.episodes &&
-										`${mediaAdditionalDetails.animeSpecifics.episodes} episodes`,
-									mediaAdditionalDetails.mangaSpecifics?.chapters &&
-										`${mediaAdditionalDetails.mangaSpecifics.chapters} chapters`,
-									mediaAdditionalDetails.mangaSpecifics?.volumes &&
-										`${mediaAdditionalDetails.mangaSpecifics.volumes} volumes`,
+									mediaAdditionalDetails.studiesSpecifics?.episodes &&
+										`${mediaAdditionalDetails.studiesSpecifics.episodes} episodes`,
+									mediaAdditionalDetails.comicSpecifics?.chapters &&
+										`${mediaAdditionalDetails.comicSpecifics.chapters} chapters`,
+									mediaAdditionalDetails.comicSpecifics?.volumes &&
+										`${mediaAdditionalDetails.comicSpecifics.volumes} volumes`,
 									mediaAdditionalDetails.movieSpecifics?.runtime &&
 										humanizeDuration(
 											mediaAdditionalDetails.movieSpecifics.runtime * 1000 * 60,
@@ -678,8 +680,8 @@ export default function Page() {
 														)
 														.with(MediaSource.Mal, () => "mal.svg")
 														.with(
-															MediaSource.MangaUpdates,
-															() => "manga-updates.svg",
+															MediaSource.ComicUpdates,
+															() => "comic-updates.svg",
 														)
 														.with(
 															MediaSource.Openlibrary,
@@ -710,7 +712,7 @@ export default function Page() {
 														)
 														.with(
 															MediaSource.Mal,
-															MediaSource.MangaUpdates,
+															MediaSource.ComicUpdates,
 															() => "/10",
 														)
 														.with(
@@ -801,7 +803,7 @@ export default function Page() {
 									Episodes
 								</Tabs.Tab>
 							) : null}
-							{!loaderData.userPreferences.disableReviews ? (
+							{!loaderData.coreDetails.reviewsDisabled ? (
 								<Tabs.Tab
 									value="reviews"
 									leftSection={<IconMessageCircle2 size={16} />}
@@ -840,7 +842,7 @@ export default function Page() {
 										spacing={{ base: "md", lg: "xs" }}
 									>
 										{loaderData.userPreferences.genresEnabled
-											? loaderData.mediaMainDetails.genres
+											? loaderData.mediaMainDetails.trackers
 													.slice(0, 12)
 													.map((g) => (
 														<Group key={g.id} wrap="nowrap">
@@ -953,9 +955,9 @@ export default function Page() {
 																	mediaAdditionalDetails.bookSpecifics?.pages ||
 																	mediaAdditionalDetails.movieSpecifics
 																		?.runtime ||
-																	mediaAdditionalDetails.mangaSpecifics
+																	mediaAdditionalDetails.comicSpecifics
 																		?.chapters ||
-																	mediaAdditionalDetails.animeSpecifics
+																	mediaAdditionalDetails.studiesSpecifics
 																		?.episodes ||
 																	mediaAdditionalDetails.visualNovelSpecifics
 																		?.length
@@ -1114,7 +1116,7 @@ export default function Page() {
 																	name="progress"
 																	defaultValue={0}
 																/>
-																{![MediaLot.Anime, MediaLot.Manga].includes(
+																{![MediaLot.Studies, MediaLot.Comic].includes(
 																	loaderData.mediaMainDetails.lot,
 																) ? (
 																	<Menu.Item
@@ -1147,7 +1149,7 @@ export default function Page() {
 													) : null}
 												</Menu.Dropdown>
 											</Menu>
-											{!loaderData.userPreferences.disableReviews ? (
+											{!loaderData.coreDetails.reviewsDisabled ? (
 												<Button
 													variant="outline"
 													w="100%"
@@ -1344,11 +1346,11 @@ export default function Page() {
 																						.with(MediaLot.VideoGame, () => "")
 																						.with(MediaLot.Book, () => "pages")
 																						.with(
-																							MediaLot.Anime,
+																							MediaLot.Studies,
 																							() => "episodes",
 																						)
 																						.with(
-																							MediaLot.Manga,
+																							MediaLot.Comic,
 																							() => "chapters",
 																						)
 																						.exhaustive()}`,
@@ -1558,7 +1560,7 @@ export default function Page() {
 						<UserMetadataDetailsSuspenseLoader>
 							{(userMetadataDetails) => (
 								<>
-									{!loaderData.userPreferences.disableReviews ? (
+									{!loaderData.coreDetails.reviewsDisabled ? (
 										<Tabs.Panel value="reviews">
 											{userMetadataDetails.reviews.length > 0 ? (
 												<MediaScrollArea
@@ -1760,10 +1762,10 @@ const ProgressUpdateModal = (props: {
 	);
 	const [watchTime, setWatchTime] =
 		useState<(typeof WATCH_TIMES)[number]>("Just Right Now");
-	const [animeEpisodeNumber, setAnimeEpisodeNumber] = useState<
+	const [studiesEpisodeNumber, setStudiesEpisodeNumber] = useState<
 		string | undefined
 	>(undefined);
-	const [mangaChapterNumber, setMangaChapterNumber] = useState<
+	const [comicChapterNumber, setComicChapterNumber] = useState<
 		string | undefined
 	>(undefined);
 
@@ -1803,38 +1805,38 @@ const ProgressUpdateModal = (props: {
 					/>
 				) : null}
 				<Stack>
-					{loaderData.mediaMainDetails.lot === MediaLot.Anime ? (
+					{loaderData.mediaMainDetails.lot === MediaLot.Studies ? (
 						<>
 							<NumberInput
 								label="Episode"
-								name="animeEpisodeNumber"
-								description="Leaving this empty will mark the whole anime as watched"
+								name="studiesEpisodeNumber"
+								description="Leaving this empty will mark the whole studies as watched"
 								hideControls
-								value={animeEpisodeNumber}
-								onChange={(e) => setAnimeEpisodeNumber(e.toString())}
+								value={studiesEpisodeNumber}
+								onChange={(e) => setStudiesEpisodeNumber(e.toString())}
 							/>
-							{animeEpisodeNumber ? (
+							{studiesEpisodeNumber ? (
 								<Checkbox
 									label="Mark all episodes before this as watched"
-									name="animeAllEpisodesBefore"
+									name="studiesAllEpisodesBefore"
 								/>
 							) : null}
 						</>
 					) : null}
-					{loaderData.mediaMainDetails.lot === MediaLot.Manga ? (
+					{loaderData.mediaMainDetails.lot === MediaLot.Comic ? (
 						<>
 							<NumberInput
 								label="Chapter"
-								name="mangaChapterNumber"
-								description="Leaving this empty will mark the whole manga as watched"
+								name="comicChapterNumber"
+								description="Leaving this empty will mark the whole comic as watched"
 								hideControls
-								value={mangaChapterNumber}
-								onChange={(e) => setMangaChapterNumber(e.toString())}
+								value={comicChapterNumber}
+								onChange={(e) => setComicChapterNumber(e.toString())}
 							/>
-							{mangaChapterNumber ? (
+							{comicChapterNumber ? (
 								<Checkbox
 									label="Mark all chapters before this as watched"
-									name="mangaAllChaptersBefore"
+									name="comicAllChaptersBefore"
 								/>
 							) : null}
 						</>
@@ -2005,8 +2007,8 @@ const IndividualProgressModal = (props: {
 
 	const [updateIcon, text] = match(props.lot)
 		.with(MediaLot.Book, () => [<IconBook size={24} />, "Pages"])
-		.with(MediaLot.Anime, () => [<IconDeviceTv size={24} />, "Episodes"])
-		.with(MediaLot.Manga, () => [<IconBrandPagekit size={24} />, "Chapters"])
+		.with(MediaLot.Studies, () => [<IconDeviceTv size={24} />, "Episodes"])
+		.with(MediaLot.Comic, () => [<IconBrandPagekit size={24} />, "Chapters"])
 		.with(MediaLot.Movie, MediaLot.VisualNovel, MediaLot.AudioBook, () => [
 			<IconClock size={24} />,
 			"Minutes",
@@ -2317,17 +2319,17 @@ const SeenItem = (props: {
 	const displayPodcastExtraInformation = podcastExtraInformation
 		? `EP-${props.history.podcastExtraInformation?.episode}: ${podcastExtraInformation.title}`
 		: null;
-	const displayAnimeExtraInformation =
-		props.history.animeExtraInformation?.episode;
-	const displayMangaExtraInformation =
-		props.history.mangaExtraInformation?.chapter;
+	const displayStudiesExtraInformation =
+		props.history.studiesExtraInformation?.episode;
+	const displayComicExtraInformation =
+		props.history.comicExtraInformation?.chapter;
 	const watchedOnInformation = props.history.providerWatchedOn;
 
 	const displayAllInformation = [
 		displayShowExtraInformation,
 		displayPodcastExtraInformation,
-		displayAnimeExtraInformation,
-		displayMangaExtraInformation,
+		displayStudiesExtraInformation,
+		displayComicExtraInformation,
 		watchedOnInformation,
 	]
 		.filter(Boolean)

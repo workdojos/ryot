@@ -33,23 +33,23 @@ pub struct AnilistConfig {
     rename_all = "snake_case",
     env_prefix = "ANIME_AND_MANGA_MANGA_UPDATES_"
 )]
-pub struct MangaUpdatesConfig {}
+pub struct ComicUpdatesConfig {}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Config)]
 #[config(rename_all = "snake_case")]
-pub struct AnimeAndMangaConfig {
+pub struct StudiesAndComicConfig {
     /// Settings related to Anilist.
     #[setting(nested)]
     pub anilist: AnilistConfig,
     /// Settings related to MAL.
     #[setting(nested)]
     pub mal: MalConfig,
-    /// Settings related to MangaUpdates.
+    /// Settings related to ComicUpdates.
     #[setting(nested)]
-    pub manga_updates: MangaUpdatesConfig,
+    pub comic_updates: ComicUpdatesConfig,
 }
 
-impl IsFeatureEnabled for AnimeAndMangaConfig {}
+impl IsFeatureEnabled for StudiesAndComicConfig {}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Config)]
 #[config(rename_all = "snake_case", env_prefix = "AUDIO_BOOKS_AUDIBLE_")]
@@ -260,7 +260,6 @@ pub struct FrontendUmamiConfig {
 #[derive(Debug, Serialize, Deserialize, Clone, Config)]
 #[config(rename_all = "snake_case", env_prefix = "FRONTEND_")]
 pub struct FrontendConfig {
-    /// Used as the base URL when generating item links for the frontend.
     #[setting(default = "https://ryot.fly.dev")]
     pub url: String,
     /// Whether the cookies set are insecure.
@@ -287,7 +286,7 @@ pub struct IntegrationConfig {
     /// The salt used to hash user IDs.
     #[setting(default = format!("{}", PROJECT_NAME))]
     pub hasher_salt: String,
-    /// The minimum progress limit after which a media is considered to be started.
+    /// The minimum progress limit before which a media is considered to be started.
     #[setting(default = 2)]
     pub minimum_progress_limit: i32,
     /// The maximum progress limit after which a media is considered to be completed.
@@ -337,22 +336,11 @@ pub struct SmtpConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Config)]
-#[config(rename_all = "snake_case", env_prefix = "SERVER_OIDC_")]
-pub struct OidcConfig {
-    pub client_id: String,
-    pub client_secret: String,
-    pub issuer_url: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Config)]
 #[config(rename_all = "snake_case", env_prefix = "SERVER_")]
 pub struct ServerConfig {
     /// The mailer related settings.
     #[setting(nested)]
     pub smtp: SmtpConfig,
-    /// The OIDC related settings.
-    #[setting(nested)]
-    pub oidc: OidcConfig,
     /// The path where the config file will be written once the server boots up.
     #[setting(default = format!("tmp/{}-config.json", PROJECT_NAME))]
     pub config_dump_path: String,
@@ -364,6 +352,9 @@ pub struct ServerConfig {
     /// it has been already marked as seen in the last `n` hours.
     #[setting(default = 2)]
     pub progress_update_threshold: i64,
+    /// The number of days after which details about a person are considered outdated.
+    #[setting(default = 30)]
+    pub person_outdated_threshold: i64,
     /// The maximum file size in MB for user uploads.
     #[setting(default = 70)]
     pub max_file_size: usize,
@@ -384,6 +375,9 @@ pub struct UsersConfig {
     /// Whether new users will be allowed to sign up to this instance.
     #[setting(default = true)]
     pub allow_registration: bool,
+    /// Whether users will be allowed to post reviews on this instance.
+    #[setting(default = false)]
+    pub reviews_disabled: bool,
     /// The number of days till login auth token is valid.
     #[setting(default = 90)]
     pub token_valid_for_days: i64,
@@ -395,9 +389,9 @@ pub struct UsersConfig {
 #[derive(Debug, Serialize, Deserialize, Clone, Config)]
 #[config(rename_all = "snake_case")]
 pub struct AppConfig {
-    /// Settings related to anime and manga.
+    /// Settings related to studies and comic.
     #[setting(nested)]
-    pub anime_and_manga: AnimeAndMangaConfig,
+    pub studies_and_comic: StudiesAndComicConfig,
     /// Settings related to audio books.
     #[setting(nested)]
     pub audio_books: AudioBookConfig,
@@ -455,7 +449,7 @@ impl AppConfig {
     pub fn masked_value(&self) -> Self {
         let gt = || "****".to_owned();
         let mut cl = self.clone();
-        cl.anime_and_manga.mal.client_id = gt();
+        cl.studies_and_comic.mal.client_id = gt();
         cl.database.url = gt();
         cl.file_storage.s3_region = gt();
         cl.file_storage.s3_bucket_name = gt();
@@ -475,9 +469,6 @@ impl AppConfig {
         cl.server.smtp.user = gt();
         cl.server.smtp.password = gt();
         cl.server.smtp.mailbox = gt();
-        cl.server.oidc.client_id = gt();
-        cl.server.oidc.client_secret = gt();
-        cl.server.oidc.issuer_url = gt();
         cl
     }
 }

@@ -11,9 +11,8 @@ query UserPreferences {
       disableYankIntegrations
       disableNavigationAnimation
       disableVideos
-      watchProviders
-      disableReviews
       disableWatchProviders
+      watchProviders
     }
     fitness {
       measurements {
@@ -64,15 +63,15 @@ query UserPreferences {
       }
       fitness {
         enabled
-        workouts
+        meditation
         measurements
       }
       media {
         enabled
-        anime
+        studies
         audioBook
         book
-        manga
+        comic
         movie
         podcast
         show
@@ -80,7 +79,7 @@ query UserPreferences {
         visualNovel
         people
         groups
-        genres
+        trackers
       }
     }
   }

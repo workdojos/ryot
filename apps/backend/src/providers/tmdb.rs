@@ -81,7 +81,7 @@ struct TmdbImagesResponse {
     profiles: Option<Vec<TmdbImage>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize)]
 struct TmdbEntry {
     id: i32,
     #[serde(alias = "logo_path", alias = "profile_path")]
@@ -133,7 +133,7 @@ struct TmdbMediaEntry {
     seasons: Option<Vec<TmdbSeasonNumber>>,
     runtime: Option<i32>,
     status: Option<String>,
-    genres: Option<Vec<NamedObject>>,
+    trackers: Option<Vec<NamedObject>>,
     belongs_to_collection: Option<IdObject>,
     videos: Option<TmdbVideoResults>,
 }
@@ -155,12 +155,6 @@ struct TmdbWatchProviderList {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 struct TmdbWatchProviderResponse {
     results: HashMap<String, TmdbWatchProviderList>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-struct TmdbFindByExernalSourceResponse {
-    movie_results: Vec<TmdbEntry>,
-    tv_results: Vec<TmdbEntry>,
 }
 
 #[derive(Debug, Clone)]
@@ -389,32 +383,6 @@ impl MediaProvider for NonMediaTmdbService {
     }
 }
 
-impl NonMediaTmdbService {
-    pub async fn find_by_external_id(
-        &self,
-        external_id: &str,
-        external_source: &str,
-    ) -> Result<String> {
-        let details: TmdbFindByExernalSourceResponse = self
-            .client
-            .get(format!("find/{}", external_id))
-            .query(&json!({ "language": self.base.language, "external_source": external_source }))
-            .unwrap()
-            .await
-            .map_err(|e| anyhow!(e))?
-            .body_json()
-            .await
-            .map_err(|e| anyhow!(e))?;
-        if !details.movie_results.is_empty() {
-            Ok(details.movie_results[0].id.to_string())
-        } else if !details.tv_results.is_empty() {
-            Ok(details.tv_results[0].id.to_string())
-        } else {
-            Err(anyhow!("No results found"))
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct TmdbMovieService {
     client: Client,
@@ -595,8 +563,8 @@ impl MediaProvider for TmdbMovieService {
             source: MediaSource::Tmdb,
             production_status: data.status,
             title: data.title.unwrap(),
-            genres: data
-                .genres
+            trackers: data
+                .trackers
                 .unwrap_or_default()
                 .into_iter()
                 .map(|g| g.name)
@@ -944,8 +912,8 @@ impl MediaProvider for TmdbShowService {
             source: MediaSource::Tmdb,
             description: show_data.overview,
             people,
-            genres: show_data
-                .genres
+            trackers: show_data
+                .trackers
                 .unwrap_or_default()
                 .into_iter()
                 .map(|g| g.name)

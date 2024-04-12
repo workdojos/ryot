@@ -17,16 +17,16 @@ UPDATE "user"
 SET summary = jsonb_set(  summary,  '{media, people_overall}',  '{"reviewed": 0, "interacted_with": 0}',  true);
 
 UPDATE "user"
-SET summary = jsonb_set(  summary,  '{fitness, workouts}',  '{"weight": "0", "duration": 0, "recorded": 0}',  true);
+SET summary = jsonb_set(  summary,  '{fitness, meditation}',  '{"weight": "0", "duration": 0, "recorded": 0}',  true);
 
 UPDATE "user"
 SET summary = jsonb_set(  summary,  '{calculated_from_beginning}',  'false',  true);
 
 UPDATE "user"
-SET summary = jsonb_set(  summary,  '{unique_items, anime_episodes}',  '[]',  true);
+SET summary = jsonb_set(  summary,  '{unique_items, studies_episodes}',  '[]',  true);
 
 UPDATE "user"
-SET summary = jsonb_set(  summary,  '{unique_items, manga_chapters}',  '[]',  true);
+SET summary = jsonb_set(  summary,  '{unique_items, comic_chapters}',  '[]',  true);
 "#,
         )
         .await?;
@@ -40,7 +40,7 @@ UPDATE "user"
 SET preferences = jsonb_set(preferences, '{features_enabled, media, groups}', 'true', true);
 
 UPDATE "user"
-SET preferences = jsonb_set(preferences, '{features_enabled, media, genres}', 'true', true);
+SET preferences = jsonb_set(preferences, '{features_enabled, media, trackers}', 'true', true);
 
 UPDATE "user"
 SET preferences = jsonb_set(preferences, '{general, disable_yank_integrations}', 'false', true);

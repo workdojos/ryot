@@ -38,7 +38,6 @@ use crate::{
 
 mod audiobookshelf;
 mod goodreads;
-mod imdb;
 mod json;
 mod mal;
 mod media_tracker;
@@ -62,12 +61,6 @@ pub struct DeployGoodreadsImportInput {
 }
 
 #[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
-pub struct DeployImdbImportInput {
-    // The file path of the uploaded CSV export file.
-    csv_path: String,
-}
-
-#[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
 pub struct DeployTraktImportInput {
     // The public username in Trakt.
     username: String,
@@ -85,10 +78,10 @@ pub struct DeployMovaryImportInput {
 
 #[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
 pub struct DeployMalImportInput {
-    /// The anime export file path (uploaded via temporary upload).
-    anime_path: String,
-    /// The manga export file path (uploaded via temporary upload).
-    manga_path: String,
+    /// The studies export file path (uploaded via temporary upload).
+    studies_path: String,
+    /// The comic export file path (uploaded via temporary upload).
+    comic_path: String,
 }
 
 #[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
@@ -135,7 +128,6 @@ pub struct DeployImportJobInput {
     pub strong_app: Option<DeployStrongAppImportInput>,
     pub audiobookshelf: Option<DeployAudiobookshelfImportInput>,
     pub json: Option<DeployJsonImportInput>,
-    pub imdb: Option<DeployImdbImportInput>,
 }
 
 /// The various steps in which media importing can fail
@@ -175,7 +167,7 @@ pub struct ImportResult {
     media_groups: Vec<ImportOrExportMediaGroupItem>,
     failed_items: Vec<ImportFailedItem>,
     people: Vec<ImportOrExportPersonItem>,
-    workouts: Vec<UserWorkoutInput>,
+    meditation: Vec<UserWorkoutInput>,
     measurements: Vec<user_measurement::Model>,
 }
 
@@ -431,11 +423,11 @@ impl ImporterService {
         };
         let details = ImportResultResponse {
             import: ImportDetails {
-                total: import.workouts.len(),
+                total: import.meditation.len(),
             },
             failed_items: vec![],
         };
-        for workout in import.workouts {
+        for workout in import.meditation {
             self.exercise_service
                 .create_user_workout(user_id, workout)
                 .await
@@ -584,16 +576,6 @@ impl ImporterService {
             ImportSource::Audiobookshelf => audiobookshelf::import(input.audiobookshelf.unwrap())
                 .await
                 .unwrap(),
-            ImportSource::Imdb => imdb::import(
-                input.imdb.unwrap(),
-                &self
-                    .media_service
-                    .get_tmdb_non_media_service()
-                    .await
-                    .unwrap(),
-            )
-            .await
-            .unwrap(),
             _ => unreachable!(),
         };
         let preferences =
@@ -669,8 +651,8 @@ impl ImporterService {
                             show_season_number: seen.show_season_number,
                             show_episode_number: seen.show_episode_number,
                             podcast_episode_number: seen.podcast_episode_number,
-                            anime_episode_number: seen.anime_episode_number,
-                            manga_chapter_number: seen.manga_chapter_number,
+                            studies_episode_number: seen.studies_episode_number,
+                            comic_chapter_number: seen.comic_chapter_number,
                             provider_watched_on: seen.provider_watched_on.clone(),
                             change_state: None,
                         },
@@ -807,7 +789,7 @@ fn convert_review_into_input(
         show_season_number: review.show_season_number,
         show_episode_number: review.show_episode_number,
         podcast_episode_number: review.podcast_episode_number,
-        manga_chapter_number: review.manga_chapter_number,
+        comic_chapter_number: review.comic_chapter_number,
         ..Default::default()
     })
 }

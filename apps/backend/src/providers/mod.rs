@@ -5,7 +5,7 @@ pub mod igdb;
 pub mod itunes;
 pub mod listennotes;
 pub mod mal;
-pub mod manga_updates;
+pub mod comic_updates;
 pub mod openlibrary;
 pub mod tmdb;
 pub mod vndb;

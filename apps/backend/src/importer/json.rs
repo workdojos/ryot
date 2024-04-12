@@ -55,12 +55,12 @@ pub async fn workouts_import(
 ) -> Result<ImportResult> {
     let export = fs::read_to_string(input.export)?;
     let db_workouts = serde_json::from_str::<Vec<workout::Model>>(&export).unwrap();
-    let workouts = db_workouts
+    let meditation = db_workouts
         .into_iter()
         .map(|w| exercises_service.db_workout_to_workout_input(w))
         .collect();
     Ok(ImportResult {
-        workouts,
+        meditation,
         ..Default::default()
     })
 }

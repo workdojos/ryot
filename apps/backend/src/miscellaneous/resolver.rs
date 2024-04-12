@@ -27,11 +27,6 @@ use markdown::{
     Options,
 };
 use nanoid::nanoid;
-use openidconnect::{
-    core::{CoreClient, CoreResponseType},
-    reqwest::async_http_client,
-    AuthenticationFlow, AuthorizationCode, CsrfToken, Nonce, Scope, TokenResponse,
-};
 use retainer::Cache;
 use rs_utils::{convert_naive_to_utc, get_first_and_last_day_of_month, IsFeatureEnabled};
 use rust_decimal::{
@@ -80,11 +75,11 @@ use crate::{
     models::{
         fitness::UserUnitSystem,
         media::{
-            AnimeSpecifics, AudioBookSpecifics, BookSpecifics, CommitMediaInput, CommitPersonInput,
+            StudiesSpecifics, AudioBookSpecifics, BookSpecifics, CommitMediaInput, CommitPersonInput,
             CreateOrUpdateCollectionInput, GenreListItem, ImportOrExportItemRating,
             ImportOrExportItemReview, ImportOrExportItemReviewComment,
             ImportOrExportMediaGroupItem, ImportOrExportMediaItem, ImportOrExportMediaItemSeen,
-            ImportOrExportPersonItem, MangaSpecifics, MediaCreatorSearchItem, MediaDetails,
+            ImportOrExportPersonItem, ComicSpecifics, MediaCreatorSearchItem, MediaDetails,
             MediaListItem, MetadataFreeCreator, MetadataGroupListItem, MetadataGroupSearchItem,
             MetadataImage, MetadataImageForMediaDetails, MetadataImageLot, MetadataSearchItem,
             MetadataSearchItemResponse, MetadataSearchItemWithLot, MetadataVideo,
@@ -92,7 +87,7 @@ use crate::{
             PartialMetadataWithoutId, PeopleSearchItem, PersonSourceSpecifics, PodcastSpecifics,
             PostReviewInput, ProgressUpdateError, ProgressUpdateErrorVariant, ProgressUpdateInput,
             ProgressUpdateResultUnion, PublicCollectionItem, ReviewPostedEvent,
-            SeenAnimeExtraInformation, SeenMangaExtraInformation, SeenPodcastExtraInformation,
+            SeenStudiesExtraInformation, SeenComicExtraInformation, SeenPodcastExtraInformation,
             SeenShowExtraInformation, ShowSpecifics, UserMediaOwnership, UserMediaReminder,
             UserSummary, UserToMediaReason, VideoGameSpecifics, VisualNovelSpecifics,
             WatchProvider,
@@ -102,15 +97,15 @@ use crate::{
     },
     providers::{
         anilist::{
-            AnilistAnimeService, AnilistMangaService, AnilistService, NonMediaAnilistService,
+            AnilistStudiesService, AnilistComicService, AnilistService, NonMediaAnilistService,
         },
         audible::AudibleService,
         google_books::GoogleBooksService,
         igdb::IgdbService,
         itunes::ITunesService,
         listennotes::ListennotesService,
-        mal::{MalAnimeService, MalMangaService, MalService, NonMediaMalService},
-        manga_updates::MangaUpdatesService,
+        mal::{MalStudiesService, MalComicService, MalService, NonMediaMalService},
+        comic_updates::ComicUpdatesService,
         openlibrary::OpenlibraryService,
         tmdb::{NonMediaTmdbService, TmdbMovieService, TmdbService, TmdbShowService},
         vndb::VndbService,
@@ -140,7 +135,7 @@ struct CreateCustomMetadataInput {
     lot: MediaLot,
     description: Option<String>,
     creators: Option<Vec<String>>,
-    genres: Option<Vec<String>>,
+    trackers: Option<Vec<String>>,
     images: Option<Vec<String>>,
     videos: Option<Vec<String>>,
     is_nsfw: Option<bool>,
@@ -151,8 +146,8 @@ struct CreateCustomMetadataInput {
     podcast_specifics: Option<PodcastSpecifics>,
     show_specifics: Option<ShowSpecifics>,
     video_game_specifics: Option<VideoGameSpecifics>,
-    manga_specifics: Option<MangaSpecifics>,
-    anime_specifics: Option<AnimeSpecifics>,
+    comic_specifics: Option<ComicSpecifics>,
+    studies_specifics: Option<StudiesSpecifics>,
     visual_novel_specifics: Option<VisualNovelSpecifics>,
 }
 
@@ -231,29 +226,16 @@ enum UserDetailsResult {
     Error(UserDetailsError),
 }
 
-#[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
-struct PasswordUserInput {
+#[derive(Debug, InputObject)]
+struct UserInput {
     username: String,
     #[graphql(secret)]
     password: String,
 }
 
-#[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
-struct OidcUserInput {
-    email: String,
-    #[graphql(secret)]
-    issuer_id: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, OneofObject, Clone)]
-enum AuthUserInput {
-    Password(PasswordUserInput),
-    Oidc(OidcUserInput),
-}
-
 #[derive(Enum, Clone, Debug, Copy, PartialEq, Eq)]
 enum RegisterErrorVariant {
-    IdentifierAlreadyExists,
+    UsernameAlreadyExists,
     Disabled,
 }
 
@@ -272,7 +254,6 @@ enum RegisterResult {
 enum LoginErrorVariant {
     UsernameDoesNotExist,
     CredentialsMismatch,
-    IncorrectProviderChosen,
 }
 
 #[derive(Debug, SimpleObject)]
@@ -294,6 +275,7 @@ enum LoginResult {
 #[derive(Debug, InputObject)]
 struct UpdateUserInput {
     username: Option<String>,
+    email: Option<String>,
     #[graphql(secret)]
     password: Option<String>,
 }
@@ -355,8 +337,8 @@ struct ReviewItem {
     posted_by: IdAndNamedObject,
     show_extra_information: Option<SeenShowExtraInformation>,
     podcast_extra_information: Option<SeenPodcastExtraInformation>,
-    anime_extra_information: Option<SeenAnimeExtraInformation>,
-    manga_extra_information: Option<SeenMangaExtraInformation>,
+    studies_extra_information: Option<SeenStudiesExtraInformation>,
+    comic_extra_information: Option<SeenComicExtraInformation>,
     comments: Vec<ImportOrExportItemReviewComment>,
 }
 
@@ -428,7 +410,7 @@ struct MediaBaseData {
     model: metadata::Model,
     creators: Vec<MetadataCreatorGroupedByRole>,
     assets: GraphqlMediaAssets,
-    genres: Vec<GenreListItem>,
+    trackers: Vec<GenreListItem>,
     suggestions: Vec<PartialMetadata>,
 }
 
@@ -466,7 +448,7 @@ struct GraphqlMediaDetails {
     source: MediaSource,
     creators: Vec<MetadataCreatorGroupedByRole>,
     watch_providers: Vec<WatchProvider>,
-    genres: Vec<GenreListItem>,
+    trackers: Vec<GenreListItem>,
     assets: GraphqlMediaAssets,
     publish_year: Option<i32>,
     publish_date: Option<NaiveDate>,
@@ -477,8 +459,8 @@ struct GraphqlMediaDetails {
     visual_novel_specifics: Option<VisualNovelSpecifics>,
     audio_book_specifics: Option<AudioBookSpecifics>,
     podcast_specifics: Option<PodcastSpecifics>,
-    manga_specifics: Option<MangaSpecifics>,
-    anime_specifics: Option<AnimeSpecifics>,
+    comic_specifics: Option<ComicSpecifics>,
+    studies_specifics: Option<StudiesSpecifics>,
     source_url: Option<String>,
     suggestions: Vec<PartialMetadata>,
     group: Option<GraphqlMediaGroup>,
@@ -573,10 +555,10 @@ struct CoreDetails {
     author_name: String,
     repository_link: String,
     item_details_height: u32,
+    reviews_disabled: bool,
     page_limit: i32,
     timezone: String,
     token_valid_for_days: i64,
-    oidc_enabled: bool,
 }
 
 #[derive(Debug, Ord, PartialEq, Eq, PartialOrd, Clone)]
@@ -586,8 +568,8 @@ struct ProgressUpdateCache {
     show_season_number: Option<i32>,
     show_episode_number: Option<i32>,
     podcast_episode_number: Option<i32>,
-    anime_episode_number: Option<i32>,
-    manga_chapter_number: Option<i32>,
+    studies_episode_number: Option<i32>,
+    comic_chapter_number: Option<i32>,
 }
 
 #[derive(SimpleObject)]
@@ -696,9 +678,9 @@ struct GraphqlCalendarEvent {
 }
 
 #[derive(Debug, Serialize, Deserialize, SimpleObject, Clone, Default)]
-struct OidcTokenOutput {
-    subject: String,
-    email: String,
+struct GroupedCalendarEvent {
+    events: Vec<GraphqlCalendarEvent>,
+    date: NaiveDate,
 }
 
 #[derive(Debug, Serialize, Deserialize, InputObject, Clone, Default)]
@@ -742,50 +724,12 @@ struct MetadataSearchInput {
     source: MediaSource,
 }
 
-#[derive(Debug, Serialize, Deserialize, SimpleObject, Clone, Default)]
-struct GroupedCalendarEvent {
-    events: Vec<GraphqlCalendarEvent>,
-    date: NaiveDate,
-}
-
 fn get_password_hasher() -> Argon2<'static> {
     Argon2::default()
 }
 
 fn get_id_hasher(salt: &str) -> Harsh {
     Harsh::builder().length(10).salt(salt).build().unwrap()
-}
-
-fn get_review_export_item(rev: ReviewItem) -> ImportOrExportItemRating {
-    let (show_season_number, show_episode_number) = match rev.show_extra_information {
-        Some(d) => (Some(d.season), Some(d.episode)),
-        None => (None, None),
-    };
-    let podcast_episode_number = rev.podcast_extra_information.map(|d| d.episode);
-    let anime_episode_number = rev.anime_extra_information.and_then(|d| d.episode);
-    let manga_chapter_number = rev.manga_extra_information.and_then(|d| d.chapter);
-    ImportOrExportItemRating {
-        review: Some(ImportOrExportItemReview {
-            visibility: Some(rev.visibility),
-            date: Some(rev.posted_on),
-            spoiler: Some(rev.spoiler),
-            text: rev.text_original,
-        }),
-        rating: rev.rating,
-        show_season_number,
-        show_episode_number,
-        podcast_episode_number,
-        anime_episode_number,
-        manga_chapter_number,
-        comments: match rev.comments.is_empty() {
-            true => None,
-            false => Some(rev.comments),
-        },
-    }
-}
-
-fn empty_nonce_verifier(_nonce: Option<&Nonce>) -> Result<(), String> {
-    Ok(())
 }
 
 #[derive(Default)]
@@ -901,7 +845,7 @@ impl MiscellaneousQuery {
         service.metadata_search(user_id, input).await
     }
 
-    /// Get paginated list of genres.
+    /// Get paginated list of trackers.
     async fn genres_list(
         &self,
         gql_ctx: &Context<'_>,
@@ -1069,18 +1013,6 @@ impl MiscellaneousQuery {
         let user_id = service.user_id_from_ctx(gql_ctx).await?;
         service.metadata_group_search(user_id, input).await
     }
-
-    /// Get an authorization URL using the configured OIDC client.
-    async fn get_oidc_redirect_url(&self, gql_ctx: &Context<'_>) -> Result<String> {
-        let service = gql_ctx.data_unchecked::<Arc<MiscellaneousService>>();
-        service.get_oidc_redirect_url().await
-    }
-
-    /// Get an access token using the configured OIDC client.
-    async fn get_oidc_token(&self, gql_ctx: &Context<'_>, code: String) -> Result<OidcTokenOutput> {
-        let service = gql_ctx.data_unchecked::<Arc<MiscellaneousService>>();
-        service.get_oidc_token(code).await
-    }
 }
 
 #[derive(Default)]
@@ -1245,16 +1177,18 @@ impl MiscellaneousMutation {
     async fn register_user(
         &self,
         gql_ctx: &Context<'_>,
-        input: AuthUserInput,
+        input: UserInput,
     ) -> Result<RegisterResult> {
         let service = gql_ctx.data_unchecked::<Arc<MiscellaneousService>>();
-        service.register_user(input).await
+        service
+            .register_user(&input.username, &input.password)
+            .await
     }
 
     /// Login a user using their username and password and return an auth token.
-    async fn login_user(&self, gql_ctx: &Context<'_>, input: AuthUserInput) -> Result<LoginResult> {
+    async fn login_user(&self, gql_ctx: &Context<'_>, input: UserInput) -> Result<LoginResult> {
         let service = gql_ctx.data_unchecked::<Arc<MiscellaneousService>>();
-        service.login_user(input).await
+        service.login_user(&input.username, &input.password).await
     }
 
     /// Update a user's profile details.
@@ -1465,7 +1399,6 @@ pub struct MiscellaneousService {
     file_storage_service: Arc<FileStorageService>,
     seen_progress_cache: Arc<Cache<ProgressUpdateCache, ()>>,
     config: Arc<config::AppConfig>,
-    oidc_client: Arc<Option<CoreClient>>,
 }
 
 impl AuthProvider for MiscellaneousService {}
@@ -1478,13 +1411,19 @@ impl MiscellaneousService {
         perform_application_job: &SqliteStorage<ApplicationJob>,
         perform_core_application_job: &SqliteStorage<CoreApplicationJob>,
         timezone: Arc<chrono_tz::Tz>,
-        oidc_client: Arc<Option<CoreClient>>,
     ) -> Self {
         let seen_progress_cache = Arc::new(Cache::new());
-        let seen_progress_cache_clone = seen_progress_cache.clone();
+        let cache_clone = seen_progress_cache.clone();
 
-        let frequency = ChronoDuration::try_minutes(3).unwrap().to_std().unwrap();
-        tokio::spawn(async move { seen_progress_cache_clone.monitor(4, 0.25, frequency).await });
+        tokio::spawn(async move {
+            cache_clone
+                .monitor(
+                    4,
+                    0.25,
+                    ChronoDuration::try_minutes(3).unwrap().to_std().unwrap(),
+                )
+                .await
+        });
 
         Self {
             db: db.clone(),
@@ -1494,8 +1433,35 @@ impl MiscellaneousService {
             seen_progress_cache,
             perform_application_job: perform_application_job.clone(),
             perform_core_application_job: perform_core_application_job.clone(),
-            oidc_client,
         }
+    }
+}
+
+fn get_review_export_item(rev: ReviewItem) -> ImportOrExportItemRating {
+    let (show_season_number, show_episode_number) = match rev.show_extra_information {
+        Some(d) => (Some(d.season), Some(d.episode)),
+        None => (None, None),
+    };
+    let podcast_episode_number = rev.podcast_extra_information.map(|d| d.episode);
+    let studies_episode_number = rev.studies_extra_information.and_then(|d| d.episode);
+    let comic_chapter_number = rev.comic_extra_information.and_then(|d| d.chapter);
+    ImportOrExportItemRating {
+        review: Some(ImportOrExportItemReview {
+            visibility: Some(rev.visibility),
+            date: Some(rev.posted_on),
+            spoiler: Some(rev.spoiler),
+            text: rev.text_original,
+        }),
+        rating: rev.rating,
+        show_season_number,
+        show_episode_number,
+        podcast_episode_number,
+        studies_episode_number,
+        comic_chapter_number,
+        comments: match rev.comments.is_empty() {
+            true => None,
+            false => Some(rev.comments),
+        },
     }
 }
 
@@ -1509,9 +1475,9 @@ impl MiscellaneousService {
             docs_link: "https://ignisda.github.io/ryot".to_owned(),
             repository_link: "https://github.com/ignisda/ryot".to_owned(),
             page_limit: self.config.frontend.page_size,
+            reviews_disabled: self.config.users.reviews_disabled,
             item_details_height: self.config.frontend.item_details_height,
             token_valid_for_days: self.config.users.token_valid_for_days,
-            oidc_enabled: self.oidc_client.is_some(),
         })
     }
 
@@ -1543,7 +1509,7 @@ impl MiscellaneousService {
             Some(m) => m,
             None => return Err(Error::new("The record does not exist".to_owned())),
         };
-        let genres = meta
+        let trackers = meta
             .find_related(Genre)
             .into_model::<GenreListItem>()
             .all(&self.db)
@@ -1657,7 +1623,7 @@ impl MiscellaneousService {
             model: meta,
             creators,
             assets,
-            genres,
+            trackers,
             suggestions,
         })
     }
@@ -1667,7 +1633,7 @@ impl MiscellaneousService {
             model,
             creators,
             assets,
-            genres,
+            trackers,
             suggestions,
         } = self.generic_metadata(metadata_id).await?;
         if model.is_partial.unwrap_or_default() {
@@ -1678,7 +1644,7 @@ impl MiscellaneousService {
         let source_url = match model.source {
             MediaSource::Custom => None,
             // DEV: This is updated by the specifics
-            MediaSource::MangaUpdates => None,
+            MediaSource::ComicUpdates => None,
             MediaSource::Itunes => Some(format!(
                 "https://podcasts.apple.com/us/podcast/{slug}/id{identifier}"
             )),
@@ -1705,19 +1671,19 @@ impl MiscellaneousService {
             MediaSource::Igdb => Some(format!("https://www.igdb.com/games/{slug}")),
             MediaSource::Anilist => {
                 let bw = match model.lot {
-                    MediaLot::Anime => "anime",
-                    MediaLot::Manga => "manga",
+                    MediaLot::Studies => "studies",
+                    MediaLot::Comic => "comic",
                     _ => unreachable!(),
                 };
                 Some(format!("https://anilist.co/{bw}/{identifier}/{slug}"))
             }
             MediaSource::Mal => {
                 let bw = match model.lot {
-                    MediaLot::Anime => "anime",
-                    MediaLot::Manga => "manga",
+                    MediaLot::Studies => "studies",
+                    MediaLot::Comic => "comic",
                     _ => unreachable!(),
                 };
-                Some(format!("https://myanimelist.net/{bw}/{identifier}/{slug}"))
+                Some(format!("https://mystudieslist.net/{bw}/{identifier}/{slug}"))
             }
             MediaSource::Vndb => Some(format!("https://vndb.org/{identifier}")),
         };
@@ -1758,15 +1724,15 @@ impl MiscellaneousService {
             book_specifics: model.book_specifics,
             show_specifics: model.show_specifics,
             movie_specifics: model.movie_specifics,
-            manga_specifics: model.manga_specifics,
-            anime_specifics: model.anime_specifics,
+            comic_specifics: model.comic_specifics,
+            studies_specifics: model.studies_specifics,
             podcast_specifics: model.podcast_specifics,
             video_game_specifics: model.video_game_specifics,
             audio_book_specifics: model.audio_book_specifics,
             visual_novel_specifics: model.visual_novel_specifics,
             group,
             assets,
-            genres,
+            trackers,
             creators,
             source_url,
             suggestions,
@@ -1826,9 +1792,9 @@ impl MiscellaneousService {
                     e.episode == Some(h.podcast_extra_information.as_ref().unwrap().episode)
                 });
                 Some(all_episodes.get(next? + 1)?.clone())
-            } else if let Some(anime_spec) = &media_details.anime_specifics {
-                anime_spec.episodes.and_then(|_| {
-                    h.anime_extra_information.as_ref().and_then(|hist| {
+            } else if let Some(studies_spec) = &media_details.studies_specifics {
+                studies_spec.episodes.and_then(|_| {
+                    h.studies_extra_information.as_ref().and_then(|hist| {
                         hist.episode.map(|e| UserMediaNextEntry {
                             season: None,
                             episode: Some(e + 1),
@@ -1836,9 +1802,9 @@ impl MiscellaneousService {
                         })
                     })
                 })
-            } else if let Some(manga_spec) = &media_details.manga_specifics {
-                manga_spec.chapters.and_then(|_| {
-                    h.manga_extra_information.as_ref().and_then(|hist| {
+            } else if let Some(comic_spec) = &media_details.comic_specifics {
+                comic_spec.chapters.and_then(|_| {
+                    h.comic_extra_information.as_ref().and_then(|hist| {
                         hist.chapter.map(|e| UserMediaNextEntry {
                             season: None,
                             episode: None,
@@ -2493,8 +2459,8 @@ impl MiscellaneousService {
             show_season_number: input.show_season_number,
             show_episode_number: input.show_episode_number,
             podcast_episode_number: input.podcast_episode_number,
-            anime_episode_number: input.anime_episode_number,
-            manga_chapter_number: input.manga_chapter_number,
+            studies_episode_number: input.studies_episode_number,
+            comic_chapter_number: input.comic_chapter_number,
         };
         if respect_cache && self.seen_progress_cache.get(&cache).await.is_some() {
             return Ok(ProgressUpdateResultUnion::Error(ProgressUpdateError {
@@ -2629,16 +2595,16 @@ impl MiscellaneousService {
                 } else {
                     None
                 };
-                let anime_ei = if matches!(meta.lot, MediaLot::Anime) {
-                    Some(SeenAnimeExtraInformation {
-                        episode: input.anime_episode_number,
+                let studies_ei = if matches!(meta.lot, MediaLot::Studies) {
+                    Some(SeenStudiesExtraInformation {
+                        episode: input.studies_episode_number,
                     })
                 } else {
                     None
                 };
-                let manga_ei = if matches!(meta.lot, MediaLot::Manga) {
-                    Some(SeenMangaExtraInformation {
-                        chapter: input.manga_chapter_number,
+                let comic_ei = if matches!(meta.lot, MediaLot::Comic) {
+                    Some(SeenComicExtraInformation {
+                        chapter: input.comic_chapter_number,
                     })
                 } else {
                     None
@@ -2666,8 +2632,8 @@ impl MiscellaneousService {
                     provider_watched_on: ActiveValue::Set(input.provider_watched_on),
                     show_extra_information: ActiveValue::Set(show_ei),
                     podcast_extra_information: ActiveValue::Set(podcast_ei),
-                    anime_extra_information: ActiveValue::Set(anime_ei),
-                    manga_extra_information: ActiveValue::Set(manga_ei),
+                    studies_extra_information: ActiveValue::Set(studies_ei),
+                    comic_extra_information: ActiveValue::Set(comic_ei),
                     ..Default::default()
                 };
                 seen_insert.insert(&self.db).await.unwrap()
@@ -2836,7 +2802,7 @@ impl MiscellaneousService {
                         "Removing user_to_metadata = {id:?}",
                         id = (u.user_id, u.metadata_id)
                     );
-                    u.delete(&self.db).await.unwrap();
+                    u.delete(&self.db).await.ok();
                 } else {
                     let mut new_reasons = HashSet::new();
                     if seen_count > 0 {
@@ -2868,7 +2834,7 @@ impl MiscellaneousService {
                         u.media_reason = ActiveValue::Set(Some(new_reasons.into_iter().collect()));
                     }
                     u.needs_to_be_updated = ActiveValue::Set(None);
-                    u.update(&self.db).await.unwrap();
+                    u.update(&self.db).await.ok();
                 }
             }
             let all_user_to_person = UserToEntity::find()
@@ -2904,7 +2870,7 @@ impl MiscellaneousService {
                         "Removing user_to_person = {id:?}",
                         id = (u.user_id, u.person_id)
                     );
-                    u.delete(&self.db).await.unwrap();
+                    u.delete(&self.db).await.ok();
                 } else {
                     let mut new_reasons = HashSet::new();
                     if reviewed_count > 0 {
@@ -2930,7 +2896,7 @@ impl MiscellaneousService {
                         u.media_reason = ActiveValue::Set(Some(new_reasons.into_iter().collect()));
                     }
                     u.needs_to_be_updated = ActiveValue::Set(None);
-                    u.update(&self.db).await.unwrap();
+                    u.update(&self.db).await.ok();
                 }
             }
             let all_user_to_metadata_groups = UserToEntity::find()
@@ -2952,10 +2918,7 @@ impl MiscellaneousService {
                 let collections_part_of = CollectionToEntity::find()
                     .select_only()
                     .column(collection_to_entity::Column::CollectionId)
-                    .filter(
-                        collection_to_entity::Column::MetadataGroupId
-                            .eq(u.metadata_group_id.unwrap()),
-                    )
+                    .filter(collection_to_entity::Column::MetadataId.eq(u.metadata_id.unwrap()))
                     .filter(collection_to_entity::Column::CollectionId.is_not_null())
                     .into_tuple::<i32>()
                     .all(&self.db)
@@ -2970,7 +2933,7 @@ impl MiscellaneousService {
                         "Removing user_to_metadata_group = {id:?}",
                         id = (u.user_id, u.metadata_group_id)
                     );
-                    u.delete(&self.db).await.unwrap();
+                    u.delete(&self.db).await.ok();
                 } else {
                     let mut new_reasons = HashSet::new();
                     if reviewed_count > 0 {
@@ -2999,7 +2962,7 @@ impl MiscellaneousService {
                         u.media_reason = ActiveValue::Set(Some(new_reasons.into_iter().collect()));
                     }
                     u.needs_to_be_updated = ActiveValue::Set(None);
-                    u.update(&self.db).await.unwrap();
+                    u.update(&self.db).await.ok();
                 }
             }
         }
@@ -3103,7 +3066,7 @@ impl MiscellaneousService {
                 }
             }
         };
-        if let (Some(a1), Some(a2)) = (&meta.anime_specifics, &input.anime_specifics) {
+        if let (Some(a1), Some(a2)) = (&meta.studies_specifics, &input.studies_specifics) {
             if let (Some(e1), Some(e2)) = (a1.episodes, a2.episodes) {
                 if e1 != e2 {
                     notifications.push((
@@ -3113,7 +3076,7 @@ impl MiscellaneousService {
                 }
             }
         };
-        if let (Some(m1), Some(m2)) = (&meta.manga_specifics, &input.manga_specifics) {
+        if let (Some(m1), Some(m2)) = (&meta.comic_specifics, &input.comic_specifics) {
             if let (Some(c1), Some(c2)) = (m1.chapters, m2.chapters) {
                 if c1 != c2 {
                     notifications.push((
@@ -3194,9 +3157,9 @@ impl MiscellaneousService {
         meta.publish_date = ActiveValue::Set(input.publish_date);
         meta.free_creators = ActiveValue::Set(free_creators);
         meta.watch_providers = ActiveValue::Set(watch_providers);
-        meta.anime_specifics = ActiveValue::Set(input.anime_specifics);
+        meta.studies_specifics = ActiveValue::Set(input.studies_specifics);
         meta.audio_book_specifics = ActiveValue::Set(input.audio_book_specifics);
-        meta.manga_specifics = ActiveValue::Set(input.manga_specifics);
+        meta.comic_specifics = ActiveValue::Set(input.comic_specifics);
         meta.movie_specifics = ActiveValue::Set(input.movie_specifics);
         meta.podcast_specifics = ActiveValue::Set(input.podcast_specifics);
         meta.show_specifics = ActiveValue::Set(input.show_specifics);
@@ -3209,7 +3172,7 @@ impl MiscellaneousService {
             metadata.id,
             metadata.lot,
             metadata.source,
-            input.genres,
+            input.trackers,
             input.suggestions,
             input.group_identifiers,
             input.people,
@@ -3415,9 +3378,9 @@ impl MiscellaneousService {
             videos: ActiveValue::Set(Some(details.videos)),
             identifier: ActiveValue::Set(details.identifier),
             audio_book_specifics: ActiveValue::Set(details.audio_book_specifics),
-            anime_specifics: ActiveValue::Set(details.anime_specifics),
+            studies_specifics: ActiveValue::Set(details.studies_specifics),
             book_specifics: ActiveValue::Set(details.book_specifics),
-            manga_specifics: ActiveValue::Set(details.manga_specifics),
+            comic_specifics: ActiveValue::Set(details.comic_specifics),
             movie_specifics: ActiveValue::Set(details.movie_specifics),
             podcast_specifics: ActiveValue::Set(details.podcast_specifics),
             show_specifics: ActiveValue::Set(details.show_specifics),
@@ -3446,7 +3409,7 @@ impl MiscellaneousService {
             metadata.id,
             metadata.lot,
             metadata.source,
-            details.genres,
+            details.trackers,
             details.suggestions,
             details.group_identifiers,
             details.people,
@@ -3461,7 +3424,7 @@ impl MiscellaneousService {
         metadata_id: i32,
         lot: MediaLot,
         source: MediaSource,
-        genres: Vec<String>,
+        trackers: Vec<String>,
         suggestions: Vec<PartialMetadataWithoutId>,
         groups: Vec<String>,
         people: Vec<PartialMetadataPerson>,
@@ -3486,7 +3449,7 @@ impl MiscellaneousService {
                 .await
                 .ok();
         }
-        for genre in genres {
+        for genre in trackers {
             self.associate_genre_with_metadata(genre, metadata_id)
                 .await
                 .ok();
@@ -3628,16 +3591,16 @@ impl MiscellaneousService {
         let mut preferences = partial_user_by_id::<UserWithOnlyPreferences>(&self.db, user_id)
             .await?
             .preferences;
-        preferences.features_enabled.media.anime =
-            self.config.anime_and_manga.is_enabled() && preferences.features_enabled.media.anime;
+        preferences.features_enabled.media.studies =
+            self.config.studies_and_comic.is_enabled() && preferences.features_enabled.media.studies;
         preferences.features_enabled.media.audio_book =
             self.config.audio_books.is_enabled() && preferences.features_enabled.media.audio_book;
         preferences.features_enabled.media.book =
             self.config.books.is_enabled() && preferences.features_enabled.media.book;
         preferences.features_enabled.media.show =
             self.config.movies_and_shows.is_enabled() && preferences.features_enabled.media.show;
-        preferences.features_enabled.media.manga =
-            self.config.anime_and_manga.is_enabled() && preferences.features_enabled.media.manga;
+        preferences.features_enabled.media.comic =
+            self.config.studies_and_comic.is_enabled() && preferences.features_enabled.media.comic;
         preferences.features_enabled.media.movie =
             self.config.movies_and_shows.is_enabled() && preferences.features_enabled.media.movie;
         preferences.features_enabled.media.podcast =
@@ -3861,16 +3824,16 @@ impl MiscellaneousService {
                 _ => return err(),
             },
             MediaSource::Anilist => match lot {
-                MediaLot::Anime => Box::new(
-                    AnilistAnimeService::new(
-                        &self.config.anime_and_manga.anilist,
+                MediaLot::Studies => Box::new(
+                    AnilistStudiesService::new(
+                        &self.config.studies_and_comic.anilist,
                         self.config.frontend.page_size,
                     )
                     .await,
                 ),
-                MediaLot::Manga => Box::new(
-                    AnilistMangaService::new(
-                        &self.config.anime_and_manga.anilist,
+                MediaLot::Comic => Box::new(
+                    AnilistComicService::new(
+                        &self.config.studies_and_comic.anilist,
                         self.config.frontend.page_size,
                     )
                     .await,
@@ -3878,16 +3841,16 @@ impl MiscellaneousService {
                 _ => return err(),
             },
             MediaSource::Mal => match lot {
-                MediaLot::Anime => Box::new(
-                    MalAnimeService::new(
-                        &self.config.anime_and_manga.mal,
+                MediaLot::Studies => Box::new(
+                    MalStudiesService::new(
+                        &self.config.studies_and_comic.mal,
                         self.config.frontend.page_size,
                     )
                     .await,
                 ),
-                MediaLot::Manga => Box::new(
-                    MalMangaService::new(
-                        &self.config.anime_and_manga.mal,
+                MediaLot::Comic => Box::new(
+                    MalComicService::new(
+                        &self.config.studies_and_comic.mal,
                         self.config.frontend.page_size,
                     )
                     .await,
@@ -3897,9 +3860,9 @@ impl MiscellaneousService {
             MediaSource::Igdb => Box::new(
                 IgdbService::new(&self.config.video_games, self.config.frontend.page_size).await,
             ),
-            MediaSource::MangaUpdates => Box::new(
-                MangaUpdatesService::new(
-                    &self.config.anime_and_manga.manga_updates,
+            MediaSource::ComicUpdates => Box::new(
+                ComicUpdatesService::new(
+                    &self.config.studies_and_comic.comic_updates,
                     self.config.frontend.page_size,
                 )
                 .await,
@@ -3907,14 +3870,6 @@ impl MiscellaneousService {
             MediaSource::Custom => return err(),
         };
         Ok(service)
-    }
-
-    pub async fn get_tmdb_non_media_service(&self) -> Result<NonMediaTmdbService> {
-        Ok(NonMediaTmdbService::new(
-            self.config.movies_and_shows.tmdb.access_token.clone(),
-            self.config.movies_and_shows.tmdb.locale.clone(),
-        )
-        .await)
     }
 
     async fn get_non_metadata_provider(&self, source: MediaSource) -> Result<Provider> {
@@ -3949,14 +3904,20 @@ impl MiscellaneousService {
             MediaSource::Igdb => Box::new(
                 IgdbService::new(&self.config.video_games, self.config.frontend.page_size).await,
             ),
-            MediaSource::MangaUpdates => Box::new(
-                MangaUpdatesService::new(
-                    &self.config.anime_and_manga.manga_updates,
+            MediaSource::ComicUpdates => Box::new(
+                ComicUpdatesService::new(
+                    &self.config.studies_and_comic.comic_updates,
                     self.config.frontend.page_size,
                 )
                 .await,
             ),
-            MediaSource::Tmdb => Box::new(self.get_tmdb_non_media_service().await?),
+            MediaSource::Tmdb => Box::new(
+                NonMediaTmdbService::new(
+                    self.config.movies_and_shows.tmdb.access_token.clone(),
+                    self.config.movies_and_shows.tmdb.locale.clone(),
+                )
+                .await,
+            ),
             MediaSource::Anilist => {
                 Box::new(NonMediaAnilistService::new(self.config.frontend.page_size).await)
             }
@@ -4081,8 +4042,8 @@ impl MiscellaneousService {
                     visibility: r.visibility,
                     show_extra_information: r.show_extra_information,
                     podcast_extra_information: r.podcast_extra_information,
-                    anime_extra_information: r.anime_extra_information,
-                    manga_extra_information: r.manga_extra_information,
+                    studies_extra_information: r.studies_extra_information,
+                    comic_extra_information: r.comic_extra_information,
                     posted_by: IdAndNamedObject {
                         id: user.id,
                         name: user.name,
@@ -4428,11 +4389,8 @@ impl MiscellaneousService {
     }
 
     pub async fn post_review(&self, user_id: i32, input: PostReviewInput) -> Result<IdObject> {
-        let preferences = partial_user_by_id::<UserWithOnlyPreferences>(&self.db, user_id)
-            .await?
-            .preferences;
-        if preferences.general.disable_reviews {
-            return Err(Error::new("Reviews are disabled"));
+        if self.config.users.reviews_disabled {
+            return Err(Error::new("Posting reviews on this instance is disabled"));
         }
         let review_id = match input.review_id {
             Some(i) => ActiveValue::Set(i),
@@ -4448,19 +4406,22 @@ impl MiscellaneousService {
         let podcast_ei = input
             .podcast_episode_number
             .map(|episode| SeenPodcastExtraInformation { episode });
-        let anime_ei = input
-            .anime_episode_number
-            .map(|episode| SeenAnimeExtraInformation {
+        let studies_ei = input
+            .studies_episode_number
+            .map(|episode| SeenStudiesExtraInformation {
                 episode: Some(episode),
             });
-        let manga_ei = input
-            .manga_chapter_number
-            .map(|chapter| SeenMangaExtraInformation {
+        let comic_ei = input
+            .comic_chapter_number
+            .map(|chapter| SeenComicExtraInformation {
                 chapter: Some(chapter),
             });
         if input.rating.is_none() && input.text.is_none() {
             return Err(Error::new("At-least one of rating or review is required."));
         }
+        let preferences = partial_user_by_id::<UserWithOnlyPreferences>(&self.db, user_id)
+            .await?
+            .preferences;
         let mut review_obj = review::ActiveModel {
             id: review_id,
             rating: ActiveValue::Set(input.rating.map(
@@ -4477,8 +4438,8 @@ impl MiscellaneousService {
             collection_id: ActiveValue::Set(input.collection_id),
             show_extra_information: ActiveValue::Set(show_ei),
             podcast_extra_information: ActiveValue::Set(podcast_ei),
-            anime_extra_information: ActiveValue::Set(anime_ei),
-            manga_extra_information: ActiveValue::Set(manga_ei),
+            studies_extra_information: ActiveValue::Set(studies_ei),
+            comic_extra_information: ActiveValue::Set(comic_ei),
             comments: ActiveValue::Set(vec![]),
             ..Default::default()
         };
@@ -4561,15 +4522,6 @@ impl MiscellaneousService {
         match review {
             Some(r) => {
                 if r.user_id == user_id {
-                    associate_user_with_entity(
-                        &user_id,
-                        r.metadata_id,
-                        r.person_id,
-                        None,
-                        r.metadata_group_id,
-                        &self.db,
-                    )
-                    .await?;
                     r.delete(&self.db).await?;
                     Ok(true)
                 } else {
@@ -4676,20 +4628,11 @@ impl MiscellaneousService {
                 collection_to_entity::Column::MetadataId
                     .eq(input.metadata_id)
                     .or(collection_to_entity::Column::PersonId.eq(input.person_id))
-                    .or(collection_to_entity::Column::MetadataGroupId.eq(input.metadata_group_id))
-                    .or(collection_to_entity::Column::ExerciseId.eq(input.exercise_id.clone())),
+                    .or(collection_to_entity::Column::MetadataGroupId.eq(input.media_group_id))
+                    .or(collection_to_entity::Column::ExerciseId.eq(input.exercise_id)),
             )
             .exec(&self.db)
             .await?;
-        associate_user_with_entity(
-            &user_id,
-            input.metadata_id,
-            input.person_id,
-            input.exercise_id,
-            input.metadata_group_id,
-            &self.db,
-        )
-        .await?;
         Ok(IdObject { id: collect.id })
     }
 
@@ -4701,16 +4644,16 @@ impl MiscellaneousService {
                 None => (None, None),
             };
             let pen = si.podcast_extra_information.as_ref().map(|d| d.episode);
-            let aen = si.anime_extra_information.as_ref().and_then(|d| d.episode);
-            let mcn = si.manga_extra_information.as_ref().and_then(|d| d.chapter);
+            let aen = si.studies_extra_information.as_ref().and_then(|d| d.episode);
+            let mcn = si.comic_extra_information.as_ref().and_then(|d| d.chapter);
             let cache = ProgressUpdateCache {
                 user_id,
                 metadata_id: si.metadata_id,
                 show_season_number: ssn,
                 show_episode_number: sen,
                 podcast_episode_number: pen,
-                anime_episode_number: aen,
-                manga_chapter_number: mcn,
+                studies_episode_number: aen,
+                comic_chapter_number: mcn,
             };
             self.seen_progress_cache.remove(&cache).await;
             let seen_id = si.id;
@@ -4734,8 +4677,6 @@ impl MiscellaneousService {
                 .await
                 .ok();
             }
-            associate_user_with_entity(&user_id, Some(metadata_id), None, None, None, &self.db)
-                .await?;
             Ok(IdObject { id: seen_id })
         } else {
             Err(Error::new("This seen item does not exist".to_owned()))
@@ -4877,7 +4818,7 @@ impl MiscellaneousService {
             .count(&self.db)
             .await?;
 
-        tracing::debug!("Calculated number workouts for user {:?}", num_workouts);
+        tracing::debug!("Calculated number meditation for user {:?}", num_workouts);
 
         let num_metadata_interacted_with = UserToEntity::find()
             .filter(user_to_entity::Column::UserId.eq(user_id.to_owned()))
@@ -4951,9 +4892,9 @@ impl MiscellaneousService {
         ls.media.people_overall.interacted_with += num_people_interacted_with;
         ls.fitness.measurements_recorded += num_measurements;
         ls.fitness.exercises_interacted_with += num_exercises_interacted_with;
-        ls.fitness.workouts.recorded += num_workouts;
-        ls.fitness.workouts.weight += total_workout_weight;
-        ls.fitness.workouts.duration += total_workout_time.to_u64().unwrap();
+        ls.fitness.meditation.recorded += num_workouts;
+        ls.fitness.meditation.weight += total_workout_weight;
+        ls.fitness.meditation.duration += total_workout_time.to_u64().unwrap();
 
         tracing::debug!("Calculated numbers summary for user {:?}", ls);
 
@@ -4989,19 +4930,19 @@ impl MiscellaneousService {
                     ls.media.movies.runtime += r;
                     units_consumed = Some(r);
                 }
-            } else if let Some(item) = meta.anime_specifics {
-                ls.unique_items.anime.insert(meta.id);
-                if let Some(s) = seen.anime_extra_information.to_owned() {
+            } else if let Some(item) = meta.studies_specifics {
+                ls.unique_items.studies.insert(meta.id);
+                if let Some(s) = seen.studies_extra_information.to_owned() {
                     if let (Some(_), Some(episode)) = (item.episodes, s.episode) {
-                        ls.unique_items.anime_episodes.insert((meta.id, episode));
+                        ls.unique_items.studies_episodes.insert((meta.id, episode));
                         units_consumed = Some(1);
                     }
                 }
-            } else if let Some(item) = meta.manga_specifics {
-                ls.unique_items.manga.insert(meta.id);
-                if let Some(s) = seen.manga_extra_information.to_owned() {
+            } else if let Some(item) = meta.comic_specifics {
+                ls.unique_items.comic.insert(meta.id);
+                if let Some(s) = seen.comic_extra_information.to_owned() {
                     if let (Some(_), Some(chapter)) = (item.chapters, s.chapter) {
-                        ls.unique_items.manga_chapters.insert((meta.id, chapter));
+                        ls.unique_items.comic_chapters.insert((meta.id, chapter));
                         units_consumed = Some(1);
                     }
                 }
@@ -5070,11 +5011,11 @@ impl MiscellaneousService {
         ls.media.shows.watched_seasons = ls.unique_items.show_seasons.len();
         ls.media.shows.watched = ls.unique_items.shows.len();
 
-        ls.media.anime.episodes = ls.unique_items.anime_episodes.len();
-        ls.media.anime.watched = ls.unique_items.anime.len();
+        ls.media.studies.episodes = ls.unique_items.studies_episodes.len();
+        ls.media.studies.watched = ls.unique_items.studies.len();
 
-        ls.media.manga.read = ls.unique_items.manga.len();
-        ls.media.manga.chapters = ls.unique_items.manga_chapters.len();
+        ls.media.comic.read = ls.unique_items.comic.len();
+        ls.media.comic.chapters = ls.unique_items.comic_chapters.len();
 
         ls.media.video_games.played = ls.unique_items.video_games.len();
         ls.media.audio_books.played = ls.unique_items.audio_books.len();
@@ -5094,32 +5035,22 @@ impl MiscellaneousService {
         Ok(IdObject { id: obj.id })
     }
 
-    async fn register_user(&self, input: AuthUserInput) -> Result<RegisterResult> {
+    async fn register_user(&self, username: &str, password: &str) -> Result<RegisterResult> {
         if !self.config.users.allow_registration {
             return Ok(RegisterResult::Error(RegisterError {
                 error: RegisterErrorVariant::Disabled,
             }));
         }
-        let (filter, username, password) = match input.clone() {
-            AuthUserInput::Oidc(input) => (
-                user::Column::OidcIssuerId.eq(&input.issuer_id),
-                input.email,
-                None,
-            ),
-            AuthUserInput::Password(input) => (
-                user::Column::Name.eq(&input.username),
-                input.username,
-                Some(input.password),
-            ),
-        };
-        if User::find().filter(filter).count(&self.db).await.unwrap() != 0 {
+        if User::find()
+            .filter(user::Column::Name.eq(username))
+            .count(&self.db)
+            .await
+            .unwrap()
+            != 0
+        {
             return Ok(RegisterResult::Error(RegisterError {
-                error: RegisterErrorVariant::IdentifierAlreadyExists,
+                error: RegisterErrorVariant::UsernameAlreadyExists,
             }));
-        };
-        let oidc_issuer_id = match input {
-            AuthUserInput::Oidc(input) => Some(input.issuer_id),
-            AuthUserInput::Password(_) => None,
         };
         let lot = if User::find().count(&self.db).await.unwrap() == 0 {
             UserLot::Admin
@@ -5127,9 +5058,8 @@ impl MiscellaneousService {
             UserLot::Normal
         };
         let user = user::ActiveModel {
-            name: ActiveValue::Set(username),
-            password: ActiveValue::Set(password),
-            oidc_issuer_id: ActiveValue::Set(oidc_issuer_id),
+            name: ActiveValue::Set(username.to_owned()),
+            password: ActiveValue::Set(password.to_owned()),
             lot: ActiveValue::Set(lot),
             preferences: ActiveValue::Set(UserPreferences::default()),
             sink_integrations: ActiveValue::Set(vec![]),
@@ -5142,43 +5072,35 @@ impl MiscellaneousService {
         Ok(RegisterResult::Ok(IdObject { id: user.id }))
     }
 
-    async fn login_user(&self, input: AuthUserInput) -> Result<LoginResult> {
-        let filter = match input.clone() {
-            AuthUserInput::Oidc(input) => user::Column::OidcIssuerId.eq(input.issuer_id),
-            AuthUserInput::Password(input) => user::Column::Name.eq(input.username),
-        };
-        match User::find().filter(filter).one(&self.db).await.unwrap() {
-            None => Ok(LoginResult::Error(LoginError {
+    async fn login_user(&self, username: &str, password: &str) -> Result<LoginResult> {
+        let user = User::find()
+            .filter(user::Column::Name.eq(username))
+            .one(&self.db)
+            .await
+            .unwrap();
+        if user.is_none() {
+            return Ok(LoginResult::Error(LoginError {
                 error: LoginErrorVariant::UsernameDoesNotExist,
-            })),
-            Some(user) => {
-                if self.config.users.validate_password {
-                    if let AuthUserInput::Password(PasswordUserInput { password, .. }) = input {
-                        if let Some(hashed_password) = user.password {
-                            let parsed_hash = PasswordHash::new(&hashed_password).unwrap();
-                            if get_password_hasher()
-                                .verify_password(password.as_bytes(), &parsed_hash)
-                                .is_err()
-                            {
-                                return Ok(LoginResult::Error(LoginError {
-                                    error: LoginErrorVariant::CredentialsMismatch,
-                                }));
-                            }
-                        } else {
-                            return Ok(LoginResult::Error(LoginError {
-                                error: LoginErrorVariant::IncorrectProviderChosen,
-                            }));
-                        }
-                    }
-                }
-                let jwt_key = jwt::sign(
-                    user.id,
-                    &self.config.users.jwt_secret,
-                    self.config.users.token_valid_for_days,
-                )?;
-                Ok(LoginResult::Ok(LoginResponse { api_key: jwt_key }))
+            }));
+        };
+        let user = user.unwrap();
+        if self.config.users.validate_password {
+            let parsed_hash = PasswordHash::new(&user.password).unwrap();
+            if get_password_hasher()
+                .verify_password(password.as_bytes(), &parsed_hash)
+                .is_err()
+            {
+                return Ok(LoginResult::Error(LoginError {
+                    error: LoginErrorVariant::CredentialsMismatch,
+                }));
             }
         }
+        let jwt_key = jwt::sign(
+            user.id,
+            &self.config.users.jwt_secret,
+            self.config.users.token_valid_for_days,
+        )?;
+        Ok(LoginResult::Ok(LoginResponse { api_key: jwt_key }))
     }
 
     // this job is run when a user is created for the first time
@@ -5208,7 +5130,12 @@ impl MiscellaneousService {
         if let Some(n) = input.username {
             user_obj.name = ActiveValue::Set(n);
         }
-        user_obj.password = ActiveValue::Set(input.password);
+        if let Some(e) = input.email {
+            user_obj.email = ActiveValue::Set(Some(e));
+        }
+        if let Some(p) = input.password {
+            user_obj.password = ActiveValue::Set(p);
+        }
         let user_obj = user_obj.update(&self.db).await.unwrap();
         Ok(IdObject { id: user_obj.id })
     }
@@ -5262,10 +5189,10 @@ impl MiscellaneousService {
             })
             .collect();
         let is_partial = match input.lot {
-            MediaLot::Anime => input.anime_specifics.is_none(),
+            MediaLot::Studies => input.studies_specifics.is_none(),
             MediaLot::AudioBook => input.audio_book_specifics.is_none(),
             MediaLot::Book => input.book_specifics.is_none(),
-            MediaLot::Manga => input.manga_specifics.is_none(),
+            MediaLot::Comic => input.comic_specifics.is_none(),
             MediaLot::Movie => input.movie_specifics.is_none(),
             MediaLot::Podcast => input.podcast_specifics.is_none(),
             MediaLot::Show => input.show_specifics.is_none(),
@@ -5279,14 +5206,14 @@ impl MiscellaneousService {
             lot: input.lot,
             source: MediaSource::Custom,
             creators,
-            genres: input.genres.unwrap_or_default(),
+            trackers: input.trackers.unwrap_or_default(),
             s3_images: images,
             videos,
             publish_year: input.publish_year,
-            anime_specifics: input.anime_specifics,
+            studies_specifics: input.studies_specifics,
             audio_book_specifics: input.audio_book_specifics,
             book_specifics: input.book_specifics,
-            manga_specifics: input.manga_specifics,
+            comic_specifics: input.comic_specifics,
             movie_specifics: input.movie_specifics,
             podcast_specifics: input.podcast_specifics,
             show_specifics: input.show_specifics,
@@ -5531,8 +5458,8 @@ impl MiscellaneousService {
                                     preferences.features_enabled.fitness.measurements =
                                         value_bool.unwrap()
                                 }
-                                "workouts" => {
-                                    preferences.features_enabled.fitness.workouts =
+                                "meditation" => {
+                                    preferences.features_enabled.fitness.meditation =
                                         value_bool.unwrap()
                                 }
                                 _ => return Err(err()),
@@ -5571,12 +5498,12 @@ impl MiscellaneousService {
                                         preferences.features_enabled.media.visual_novel =
                                             value_bool.unwrap()
                                     }
-                                    "manga" => {
-                                        preferences.features_enabled.media.manga =
+                                    "comic" => {
+                                        preferences.features_enabled.media.comic =
                                             value_bool.unwrap()
                                     }
-                                    "anime" => {
-                                        preferences.features_enabled.media.anime =
+                                    "studies" => {
+                                        preferences.features_enabled.media.studies =
                                             value_bool.unwrap()
                                     }
                                     "people" => {
@@ -5587,8 +5514,8 @@ impl MiscellaneousService {
                                         preferences.features_enabled.media.groups =
                                             value_bool.unwrap()
                                     }
-                                    "genres" => {
-                                        preferences.features_enabled.media.genres =
+                                    "trackers" => {
+                                        preferences.features_enabled.media.trackers =
                                             value_bool.unwrap()
                                     }
                                     _ => return Err(err()),
@@ -5641,9 +5568,6 @@ impl MiscellaneousService {
                         "watch_providers" => {
                             preferences.general.watch_providers =
                                 serde_json::from_str(&input.value).unwrap();
-                        }
-                        "disable_reviews" => {
-                            preferences.general.disable_reviews = value_bool.unwrap();
                         }
                         _ => return Err(err()),
                     },
@@ -5955,9 +5879,9 @@ impl MiscellaneousService {
                         IgdbService::supported_languages(),
                         IgdbService::default_language(),
                     ),
-                    MediaSource::MangaUpdates => (
-                        MangaUpdatesService::supported_languages(),
-                        MangaUpdatesService::default_language(),
+                    MediaSource::ComicUpdates => (
+                        ComicUpdatesService::supported_languages(),
+                        ComicUpdatesService::default_language(),
                     ),
                     MediaSource::Anilist => (
                         AnilistService::supported_languages(),
@@ -6163,8 +6087,8 @@ impl MiscellaneousService {
                 show_season_number: pu.show_season_number,
                 show_episode_number: pu.show_episode_number,
                 podcast_episode_number: pu.podcast_episode_number,
-                anime_episode_number: pu.anime_episode_number,
-                manga_chapter_number: pu.manga_chapter_number,
+                studies_episode_number: pu.studies_episode_number,
+                comic_chapter_number: pu.comic_chapter_number,
                 provider_watched_on: pu.provider_watched_on,
                 change_state: None,
             },
@@ -6620,7 +6544,7 @@ impl MiscellaneousService {
             | MediaSource::Anilist
             | MediaSource::Listennotes
             | MediaSource::Itunes
-            | MediaSource::MangaUpdates
+            | MediaSource::ComicUpdates
             | MediaSource::Mal
             | MediaSource::Vndb
             | MediaSource::GoogleBooks => None,
@@ -6713,7 +6637,7 @@ impl MiscellaneousService {
             | MediaSource::Anilist
             | MediaSource::Listennotes
             | MediaSource::Itunes
-            | MediaSource::MangaUpdates
+            | MediaSource::ComicUpdates
             | MediaSource::Mal
             | MediaSource::Openlibrary
             | MediaSource::Vndb
@@ -6903,8 +6827,8 @@ impl MiscellaneousService {
                         None => (None, None),
                     };
                     let podcast_episode_number = s.podcast_extra_information.map(|d| d.episode);
-                    let anime_episode_number = s.anime_extra_information.and_then(|d| d.episode);
-                    let manga_chapter_number = s.manga_extra_information.and_then(|d| d.chapter);
+                    let studies_episode_number = s.studies_extra_information.and_then(|d| d.episode);
+                    let comic_chapter_number = s.comic_extra_information.and_then(|d| d.chapter);
                     ImportOrExportMediaItemSeen {
                         progress: Some(s.progress),
                         started_on: s.started_on.map(convert_naive_to_utc),
@@ -6913,8 +6837,8 @@ impl MiscellaneousService {
                         show_season_number,
                         show_episode_number,
                         podcast_episode_number,
-                        anime_episode_number,
-                        manga_chapter_number,
+                        studies_episode_number,
+                        comic_chapter_number,
                     }
                 })
                 .collect();
@@ -7119,17 +7043,14 @@ impl MiscellaneousService {
             .await?;
 
         while let Some(meta) = meta_stream.try_next().await? {
-            tracing::trace!("Processing metadata id = {:#?}", meta.id);
             let calendar_events = meta.find_related(CalendarEvent).all(&self.db).await?;
             for cal_event in calendar_events {
                 let mut need_to_delete = false;
                 if let Some(show) = cal_event.metadata_show_extra_information {
                     if let Some(show_info) = &meta.show_specifics {
                         if let Some((_, ep)) = show_info.get_episode(show.season, show.episode) {
-                            if let Some(publish_date) = ep.publish_date {
-                                if publish_date != cal_event.date {
-                                    need_to_delete = true;
-                                }
+                            if ep.publish_date.unwrap() != cal_event.date {
+                                need_to_delete = true;
                             }
                         }
                     }
@@ -7463,43 +7384,6 @@ GROUP BY m.id;
             url += format!("?defaultTab={}", tab).as_str()
         }
         url
-    }
-
-    async fn get_oidc_redirect_url(&self) -> Result<String> {
-        match self.oidc_client.as_ref() {
-            Some(client) => {
-                let (authorize_url, _, _) = client
-                    .authorize_url(
-                        AuthenticationFlow::<CoreResponseType>::AuthorizationCode,
-                        CsrfToken::new_random,
-                        Nonce::new_random,
-                    )
-                    .add_scope(Scope::new("email".to_string()))
-                    .url();
-                Ok(authorize_url.to_string())
-            }
-            _ => Err(Error::new("OIDC client not configured")),
-        }
-    }
-
-    async fn get_oidc_token(&self, code: String) -> Result<OidcTokenOutput> {
-        match self.oidc_client.as_ref() {
-            Some(client) => {
-                let token = client
-                    .exchange_code(AuthorizationCode::new(code))
-                    .request_async(async_http_client)
-                    .await?;
-                let id_token = token.id_token().unwrap();
-                let claims = id_token.claims(&client.id_token_verifier(), empty_nonce_verifier)?;
-                let subject = claims.subject().to_string();
-                let email = claims
-                    .email()
-                    .map(|e| e.to_string())
-                    .ok_or_else(|| Error::new("Email not found in OIDC token claims"))?;
-                Ok(OidcTokenOutput { subject, email })
-            }
-            _ => Err(Error::new("OIDC client not configured")),
-        }
     }
 
     #[cfg(debug_assertions)]

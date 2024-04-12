@@ -12,12 +12,12 @@ impl MigrationTrait for Migration {
 CREATE TEMP TABLE temp_chapter_entries AS
 SELECT s.id AS original_seen_id, s.progress, s.started_on, s.finished_on, s.user_id,
        m.id AS metadata_id, s.state,
-       jsonb_build_object('Manga', jsonb_build_object('chapter', ch.chapter)) AS extra_information,
+       jsonb_build_object('Comic', jsonb_build_object('chapter', ch.chapter)) AS extra_information,
        s.updated_at
 FROM seen s
 JOIN metadata m ON s.metadata_id = m.id
 CROSS JOIN LATERAL generate_series(1, NULLIF((m.specifics::jsonb #>> '{d,chapters}')::integer, 0)) AS ch(chapter)
-WHERE m.specifics::jsonb ->> 't' = 'Manga'
+WHERE m.specifics::jsonb ->> 't' = 'Comic'
 AND m.specifics::jsonb #>> '{d,chapters}' IS NOT NULL
 AND s.state != 'IP'
 AND s.id NOT IN (
@@ -40,7 +40,7 @@ WHERE id IN (
 DROP TABLE temp_chapter_entries;
 
 UPDATE seen s
-SET extra_information = jsonb_build_object('Manga', jsonb_build_object('chapter', NULL))
+SET extra_information = jsonb_build_object('Comic', jsonb_build_object('chapter', NULL))
 FROM metadata m
 WHERE s.metadata_id = m.id
 AND m.lot = 'MA'

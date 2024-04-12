@@ -50,15 +50,15 @@ export const getLot = (lot: unknown) => {
 	if (!lot) return undefined;
 	const newLot = (lot as string).toLowerCase();
 	return match(newLot)
-		.with("anime", "animes", () => MediaLot.Anime)
-		.with("manga", "mangas", () => MediaLot.Manga)
+		.with("studies", "studiess", () => MediaLot.Studies)
+		.with("comic", "comics", () => MediaLot.Comic)
 		.with("books", "book", () => MediaLot.Book)
 		.with("movies", "movie", () => MediaLot.Movie)
 		.with("tv", "show", "shows", () => MediaLot.Show)
 		.with(
 			"visual_novel",
 			"visualnovel",
-			"visual novel",
+			"other",
 			() => MediaLot.VisualNovel,
 		)
 		.with(
@@ -92,11 +92,11 @@ export const getLotGradient = (lot: MediaLot) =>
 			from: "purple",
 			to: "blue",
 		}))
-		.with(MediaLot.Anime, () => ({
+		.with(MediaLot.Studies, () => ({
 			from: "red",
 			to: "blue",
 		}))
-		.with(MediaLot.Manga, () => ({
+		.with(MediaLot.Comic, () => ({
 			from: "red",
 			to: "green",
 		}))
@@ -135,11 +135,11 @@ export const getVerb = (verb: Verb, lot: MediaLot) => {
 	return match(verb)
 		.with(Verb.Read, () => {
 			return match(lot)
-				.with(MediaLot.Book, MediaLot.Manga, () => "read")
+				.with(MediaLot.Book, MediaLot.Comic, () => "read")
 				.with(
 					MediaLot.Movie,
 					MediaLot.Show,
-					MediaLot.Anime,
+					MediaLot.Studies,
 					MediaLot.VisualNovel,
 					() => "watch",
 				)
@@ -188,8 +188,8 @@ export const getMetadataIcon = (lot: MediaLot) => {
 		.with(MediaLot.VideoGame, () => IconBrandAppleArcade)
 		.with(MediaLot.AudioBook, () => IconHeadphones)
 		.with(MediaLot.Podcast, () => IconMicrophone)
-		.with(MediaLot.Manga, () => IconDeviceTvOld)
-		.with(MediaLot.Anime, () => IconBooks)
+		.with(MediaLot.Comic, () => IconDeviceTvOld)
+		.with(MediaLot.Studies, () => IconBooks)
 		.with(MediaLot.VisualNovel, () => IconBook2)
 		.exhaustive();
 };

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     models::media::{
-        ImportOrExportItemReviewComment, SeenAnimeExtraInformation, SeenMangaExtraInformation,
+        ImportOrExportItemReviewComment, SeenStudiesExtraInformation, SeenComicExtraInformation,
         SeenPodcastExtraInformation, SeenShowExtraInformation,
     },
     utils::associate_user_with_entity,
@@ -31,8 +31,8 @@ pub struct Model {
     pub collection_id: Option<i32>,
     pub show_extra_information: Option<SeenShowExtraInformation>,
     pub podcast_extra_information: Option<SeenPodcastExtraInformation>,
-    pub anime_extra_information: Option<SeenAnimeExtraInformation>,
-    pub manga_extra_information: Option<SeenMangaExtraInformation>,
+    pub studies_extra_information: Option<SeenStudiesExtraInformation>,
+    pub comic_extra_information: Option<SeenComicExtraInformation>,
     #[sea_orm(column_type = "Json")]
     pub comments: Vec<ImportOrExportItemReviewComment>,
 }

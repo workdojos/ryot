@@ -12,12 +12,12 @@ impl MigrationTrait for Migration {
 CREATE TEMP TABLE temp_episode_entries AS
 SELECT s.id AS original_seen_id, s.progress, s.started_on, s.finished_on, s.user_id,
        m.id AS metadata_id, s.state,
-       jsonb_build_object('Anime', jsonb_build_object('episode', ep.episode)) AS extra_information,
+       jsonb_build_object('Studies', jsonb_build_object('episode', ep.episode)) AS extra_information,
        s.updated_at
 FROM seen s
 JOIN metadata m ON s.metadata_id = m.id
 CROSS JOIN LATERAL generate_series(1, NULLIF((m.specifics::jsonb #>> '{d,episodes}')::integer, 0)) AS ep(episode)
-WHERE m.specifics::jsonb ->> 't' = 'Anime'
+WHERE m.specifics::jsonb ->> 't' = 'Studies'
 AND m.specifics::jsonb #>> '{d,episodes}' IS NOT NULL
 AND s.state != 'IP'
 AND s.id NOT IN (
@@ -40,7 +40,7 @@ WHERE id IN (
 DROP TABLE temp_episode_entries;
 
 UPDATE seen s
-SET extra_information = jsonb_build_object('Anime', jsonb_build_object('episode', NULL))
+SET extra_information = jsonb_build_object('Studies', jsonb_build_object('episode', NULL))
 FROM metadata m
 WHERE s.metadata_id = m.id
 AND m.lot = 'AN'

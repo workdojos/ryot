@@ -13,7 +13,7 @@ query MetadataMainDetails($metadataId: Int!) {
     providerRating
     productionStatus
     originalLanguage
-    genres {
+    trackers {
       id
       name
     }

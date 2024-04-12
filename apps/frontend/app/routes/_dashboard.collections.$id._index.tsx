@@ -7,7 +7,6 @@ import {
 	Flex,
 	Group,
 	Modal,
-	Pagination,
 	Select,
 	SimpleGrid,
 	Stack,
@@ -43,7 +42,11 @@ import { useState } from "react";
 import invariant from "tiny-invariant";
 import { z } from "zod";
 import { zx } from "zodix";
-import { ApplicationGrid, DebouncedSearchInput } from "~/components/common";
+import {
+	ApplicationGrid,
+	ApplicationPagination,
+	DebouncedSearchInput,
+} from "~/components/common";
 import {
 	MediaItemWithoutUpdateModal,
 	type PostReview,
@@ -117,10 +120,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 		info,
 		contents: contents.results,
 		coreDetails: { pageLimit: coreDetails.pageLimit },
-		userPreferences: {
-			reviewScale: userPreferences.general.reviewScale,
-			disableReviews: userPreferences.general.disableReviews,
-		},
+		userPreferences: { reviewScale: userPreferences.general.reviewScale },
 		userDetails,
 	});
 };
@@ -184,7 +184,7 @@ export default function Page() {
 							<Tabs.Tab value="actions" leftSection={<IconUser size={16} />}>
 								Actions
 							</Tabs.Tab>
-							{!loaderData.userPreferences.disableReviews ? (
+							{loaderData.info.reviews.length > 0 ? (
 								<Tabs.Tab
 									value="reviews"
 									leftSection={<IconMessageCircle2 size={16} />}
@@ -311,8 +311,7 @@ export default function Page() {
 								)}
 								{loaderData.contents.details ? (
 									<Center>
-										<Pagination
-											size="sm"
+										<ApplicationPagination
 											value={loaderData.query.page}
 											onChange={(v) => setP("page", v.toString())}
 											total={Math.ceil(
@@ -337,23 +336,21 @@ export default function Page() {
 								</Button>
 							</SimpleGrid>
 						</Tabs.Panel>
-						{!loaderData.userPreferences.disableReviews ? (
-							<Tabs.Panel value="reviews">
-								<Stack>
-									{loaderData.info.reviews.map((r) => (
-										<ReviewItemDisplay
-											title={loaderData.info.details.name}
-											review={r}
-											key={r.id}
-											collectionId={loaderData.id}
-											reviewScale={loaderData.userPreferences.reviewScale}
-											user={loaderData.userDetails}
-											entityType="collection"
-										/>
-									))}
-								</Stack>
-							</Tabs.Panel>
-						) : null}
+						<Tabs.Panel value="reviews">
+							<Stack>
+								{loaderData.info.reviews.map((r) => (
+									<ReviewItemDisplay
+										title={loaderData.info.details.name}
+										review={r}
+										key={r.id}
+										collectionId={loaderData.id}
+										reviewScale={loaderData.userPreferences.reviewScale}
+										user={loaderData.userDetails}
+										entityType="collection"
+									/>
+								))}
+							</Stack>
+						</Tabs.Panel>
 					</Tabs>
 				</Stack>
 			</Container>

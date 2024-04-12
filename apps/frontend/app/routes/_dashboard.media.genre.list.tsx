@@ -6,7 +6,6 @@ import {
 	Container,
 	Flex,
 	Group,
-	Pagination,
 	Paper,
 	Stack,
 	Text,
@@ -21,7 +20,11 @@ import { Link, useLoaderData } from "@remix-run/react";
 import { GenresListDocument } from "@ryot/generated/graphql/backend/graphql";
 import { z } from "zod";
 import { zx } from "zodix";
-import { ApplicationGrid, DebouncedSearchInput } from "~/components/common";
+import {
+	ApplicationGrid,
+	ApplicationPagination,
+	DebouncedSearchInput,
+} from "~/components/common";
 import { useGetMantineColor, useSearchParam } from "~/lib/hooks";
 import { getCoreDetails, gqlClient } from "~/lib/utilities.server";
 
@@ -44,7 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const meta: MetaFunction = () => {
-	return [{ title: "Genres | Ryot" }];
+	return [{ title: "Trackers | Ryot" }];
 };
 
 export default function Page() {
@@ -56,10 +59,10 @@ export default function Page() {
 		<Container>
 			<Stack>
 				<Flex align="center" gap="md">
-					<Title>Genres</Title>
+					<Title>Trackers</Title>
 				</Flex>
 				<DebouncedSearchInput
-					placeholder="Search for genres"
+					placeholder="Search for trackers"
 					initialValue={loaderData.query.query}
 				/>
 				{loaderData.listGenres.details.total > 0 ? (
@@ -102,8 +105,7 @@ export default function Page() {
 				)}
 				{loaderData.listGenres ? (
 					<Center mt="xl">
-						<Pagination
-							size="sm"
+						<ApplicationPagination
 							value={loaderData.query.page}
 							onChange={(v) => setP("page", v.toString())}
 							total={Math.ceil(

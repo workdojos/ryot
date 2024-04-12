@@ -64,7 +64,7 @@ struct BookSearchItem {
     title: String,
     description: Option<String>,
     author_names: Vec<String>,
-    genres: Vec<String>,
+    trackers: Vec<String>,
     images: Vec<String>,
     publish_year: Option<i32>,
     publish_date: Option<NaiveDate>,
@@ -384,7 +384,7 @@ impl MediaProvider for OpenlibraryService {
             .unique()
             .collect();
 
-        let genres = data
+        let trackers = data
             .subjects
             .unwrap_or_default()
             .into_iter()
@@ -461,7 +461,7 @@ impl MediaProvider for OpenlibraryService {
             lot: MediaLot::Book,
             source: MediaSource::Openlibrary,
             people,
-            genres,
+            trackers,
             url_images: images,
             publish_year: first_release_date.map(|d| d.year()),
             book_specifics: Some(BookSpecifics {
@@ -512,7 +512,7 @@ impl MediaProvider for OpenlibraryService {
                     title: d.title,
                     description: None,
                     author_names: d.author_name.unwrap_or_default(),
-                    genres: vec![],
+                    trackers: vec![],
                     publish_year: d.first_publish_year,
                     publish_date: None,
                     book_specifics: BookSpecifics {

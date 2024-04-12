@@ -12,13 +12,13 @@ impl MigrationTrait for Migration {
                 r#"
 ALTER TABLE seen ADD COLUMN show_extra_information JSONB;
 ALTER TABLE seen ADD COLUMN podcast_extra_information JSONB;
-ALTER TABLE seen ADD COLUMN anime_extra_information JSONB;
-ALTER TABLE seen ADD COLUMN manga_extra_information JSONB;
+ALTER TABLE seen ADD COLUMN studies_extra_information JSONB;
+ALTER TABLE seen ADD COLUMN comic_extra_information JSONB;
 
 UPDATE seen SET show_extra_information = extra_information -> 'Show' WHERE extra_information -> 'Show' IS NOT NULL;
 UPDATE seen SET podcast_extra_information = extra_information -> 'Podcast' WHERE extra_information -> 'Podcast' IS NOT NULL;
-UPDATE seen SET anime_extra_information = extra_information -> 'Anime' WHERE extra_information -> 'Anime' IS NOT NULL;
-UPDATE seen SET manga_extra_information = extra_information -> 'Manga' WHERE extra_information -> 'Manga' IS NOT NULL;
+UPDATE seen SET studies_extra_information = extra_information -> 'Studies' WHERE extra_information -> 'Studies' IS NOT NULL;
+UPDATE seen SET comic_extra_information = extra_information -> 'Comic' WHERE extra_information -> 'Comic' IS NOT NULL;
 
 ALTER TABLE seen DROP COLUMN extra_information;
 "#,

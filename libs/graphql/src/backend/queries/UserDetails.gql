@@ -5,7 +5,7 @@ query UserDetails {
       id
       lot
       name
-      oidcIssuerId
+      email
       isDemo
     }
   }

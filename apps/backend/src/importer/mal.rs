@@ -67,7 +67,7 @@ fn convert_to_format(item: Item, lot: MediaLot) -> ImportOrExportMediaItem {
         source_id: item.title.clone(),
         lot,
         source: MediaSource::Mal,
-        identifier: "".to_string(),
+        identifier: item.title.clone(),
         internal_identifier: Some(ImportOrExportItemIdentifier::NeedsDetails {
             identifier: item.identifier.to_string(),
             title: item.title,
@@ -79,14 +79,14 @@ fn convert_to_format(item: Item, lot: MediaLot) -> ImportOrExportMediaItem {
 }
 
 pub async fn import(input: DeployMalImportInput) -> Result<ImportResult> {
-    let anime_data = decode_data::<DataRoot>(&input.anime_path)?;
-    let manga_data = decode_data::<DataRoot>(&input.manga_path)?;
+    let studies_data = decode_data::<DataRoot>(&input.studies_path)?;
+    let comic_data = decode_data::<DataRoot>(&input.comic_path)?;
     let mut media = vec![];
-    for item in anime_data.items.into_iter() {
-        media.push(convert_to_format(item, MediaLot::Anime));
+    for item in studies_data.items.into_iter() {
+        media.push(convert_to_format(item, MediaLot::Studies));
     }
-    for item in manga_data.items.into_iter() {
-        media.push(convert_to_format(item, MediaLot::Manga));
+    for item in comic_data.items.into_iter() {
+        media.push(convert_to_format(item, MediaLot::Comic));
     }
     Ok(ImportResult {
         media,
@@ -96,17 +96,17 @@ pub async fn import(input: DeployMalImportInput) -> Result<ImportResult> {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DataRoot {
-    #[serde(alias = "manga", alias = "anime")]
+    #[serde(alias = "comic", alias = "studies")]
     items: Vec<Item>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct Item {
-    #[serde(alias = "series_animedb_id", alias = "manga_mangadb_id")]
+    #[serde(alias = "series_studiesdb_id", alias = "comic_comicdb_id")]
     identifier: u32,
-    #[serde(alias = "series_title", alias = "manga_title")]
+    #[serde(alias = "series_title", alias = "comic_title")]
     title: String,
-    #[serde(alias = "series_episodes", alias = "manga_chapters")]
+    #[serde(alias = "series_episodes", alias = "comic_chapters")]
     total: i32,
     #[serde(alias = "my_watched_episodes", alias = "my_read_chapters")]
     done: Decimal,

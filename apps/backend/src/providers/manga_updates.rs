@@ -11,7 +11,7 @@ use surf::{http::headers::ACCEPT, Client};
 use crate::{
     models::{
         media::{
-            MangaSpecifics, MediaDetails, MetadataImageForMediaDetails, MetadataImageLot,
+            ComicSpecifics, MediaDetails, MetadataImageForMediaDetails, MetadataImageLot,
             MetadataPerson, MetadataSearchItem, PartialMetadataPerson, PartialMetadataWithoutId,
             PeopleSearchItem, PersonSourceSpecifics,
         },
@@ -21,15 +21,15 @@ use crate::{
     utils::get_base_http_client,
 };
 
-static URL: &str = "https://api.mangaupdates.com/v1/";
+static URL: &str = "https://api.comicupdates.com/v1/";
 
 #[derive(Debug, Clone)]
-pub struct MangaUpdatesService {
+pub struct ComicUpdatesService {
     client: Client,
     page_limit: i32,
 }
 
-impl MediaProviderLanguages for MangaUpdatesService {
+impl MediaProviderLanguages for ComicUpdatesService {
     fn supported_languages() -> Vec<String> {
         vec!["us".to_owned()]
     }
@@ -39,8 +39,8 @@ impl MediaProviderLanguages for MangaUpdatesService {
     }
 }
 
-impl MangaUpdatesService {
-    pub async fn new(_config: &config::MangaUpdatesConfig, page_limit: i32) -> Self {
+impl ComicUpdatesService {
+    pub async fn new(_config: &config::ComicUpdatesConfig, page_limit: i32) -> Self {
         let client = get_base_http_client(URL, vec![(ACCEPT, mime::JSON)]);
         Self { client, page_limit }
     }
@@ -115,7 +115,7 @@ struct MetadataItemRecord {
     url: Option<String>,
     authors: Option<Vec<ItemAuthor>>,
     publishers: Option<Vec<ItemPublisher>>,
-    genres: Option<Vec<ItemGenre>>,
+    trackers: Option<Vec<ItemGenre>>,
     categories: Option<Vec<ItemCategory>>,
     bayesian_rating: Option<Decimal>,
     recommendations: Option<Vec<MetadataItemRecord>>,
@@ -148,7 +148,7 @@ struct MetadataSearchResponse<T> {
 }
 
 #[async_trait]
-impl MediaProvider for MangaUpdatesService {
+impl MediaProvider for ComicUpdatesService {
     async fn people_search(
         &self,
         query: &str,
@@ -225,8 +225,8 @@ impl MediaProvider for MangaUpdatesService {
                     PartialMetadataWithoutId {
                         title: r.title,
                         identifier: r.series_id.to_string(),
-                        source: MediaSource::MangaUpdates,
-                        lot: MediaLot::Manga,
+                        source: MediaSource::ComicUpdates,
+                        lot: MediaLot::Comic,
                         image: None,
                     },
                 )
@@ -234,7 +234,7 @@ impl MediaProvider for MangaUpdatesService {
             .collect_vec();
         let resp = MetadataPerson {
             identifier: identity.to_owned(),
-            source: MediaSource::MangaUpdates,
+            source: MediaSource::ComicUpdates,
             name: data.name.unwrap(),
             gender: data.gender,
             place: data.birthplace,
@@ -272,7 +272,7 @@ impl MediaProvider for MangaUpdatesService {
                 identifier: a.author_id.unwrap().to_string(),
                 name: a.name.unwrap_or_default(),
                 role: a.lot.unwrap(),
-                source: MediaSource::MangaUpdates,
+                source: MediaSource::ComicUpdates,
                 character: None,
                 source_specifics: None,
             })
@@ -302,8 +302,8 @@ impl MediaProvider for MangaUpdatesService {
                     title: data.title.unwrap(),
                     image: data.image.unwrap().url.original,
                     identifier: data.series_id.unwrap().to_string(),
-                    source: MediaSource::MangaUpdates,
-                    lot: MediaLot::Manga,
+                    source: MediaSource::ComicUpdates,
+                    lot: MediaLot::Comic,
                 });
             }
         }
@@ -311,12 +311,12 @@ impl MediaProvider for MangaUpdatesService {
             identifier: data.series_id.unwrap().to_string(),
             title: data.title.unwrap(),
             description: data.description,
-            source: MediaSource::MangaUpdates,
-            lot: MediaLot::Manga,
+            source: MediaSource::ComicUpdates,
+            lot: MediaLot::Comic,
             people,
             production_status: data.status,
-            genres: data
-                .genres
+            trackers: data
+                .trackers
                 .unwrap_or_default()
                 .into_iter()
                 .map(|g| g.genre)
@@ -335,7 +335,7 @@ impl MediaProvider for MangaUpdatesService {
                 })
                 .collect(),
             publish_year: data.year.and_then(|y| y.parse().ok()),
-            manga_specifics: Some(MangaSpecifics {
+            comic_specifics: Some(ComicSpecifics {
                 chapters: data.latest_chapter,
                 volumes: None,
                 url: data.url,

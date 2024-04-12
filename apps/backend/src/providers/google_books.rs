@@ -208,14 +208,14 @@ impl GoogleBooksService {
                 image: None,
             });
         }
-        let mut genres = item
+        let mut trackers = item
             .categories
             .unwrap_or_default()
             .into_iter()
             .flat_map(|c| c.split(" / ").map(|g| g.to_case(Case::Title)).collect_vec())
             .collect_vec();
         if let Some(g) = item.main_category {
-            genres.push(g);
+            trackers.push(g);
         }
         MediaDetails {
             identifier: id,
@@ -224,7 +224,7 @@ impl GoogleBooksService {
             title: item.title,
             description: item.description,
             creators: creators.into_iter().unique().collect(),
-            genres: genres.into_iter().unique().collect(),
+            trackers: trackers.into_iter().unique().collect(),
             publish_year: item.published_date.and_then(|d| convert_date_to_year(&d)),
             publish_date: None,
             book_specifics: Some(BookSpecifics {

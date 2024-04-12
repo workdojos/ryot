@@ -7,7 +7,7 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::models::media::{
-    AnimeSpecifics, AudioBookSpecifics, BookSpecifics, MangaSpecifics, MetadataFreeCreator,
+    StudiesSpecifics, AudioBookSpecifics, BookSpecifics, ComicSpecifics, MetadataFreeCreator,
     MetadataImage, MetadataVideo, MovieSpecifics, PodcastSpecifics, ShowSpecifics,
     VideoGameSpecifics, VisualNovelSpecifics, WatchProvider,
 };
@@ -46,8 +46,8 @@ pub struct Model {
     pub show_specifics: Option<ShowSpecifics>,
     pub video_game_specifics: Option<VideoGameSpecifics>,
     pub visual_novel_specifics: Option<VisualNovelSpecifics>,
-    pub anime_specifics: Option<AnimeSpecifics>,
-    pub manga_specifics: Option<MangaSpecifics>,
+    pub studies_specifics: Option<StudiesSpecifics>,
+    pub comic_specifics: Option<ComicSpecifics>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

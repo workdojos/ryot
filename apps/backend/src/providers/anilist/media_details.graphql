@@ -14,7 +14,7 @@ query MediaDetailsQuery($id: Int!) {
       extraLarge
     }
     type
-    genres
+    trackers
     tags {
       name
     }

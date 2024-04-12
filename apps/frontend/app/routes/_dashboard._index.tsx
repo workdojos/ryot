@@ -67,7 +67,7 @@ const getTake = (prefs: UserPreferences, el: DashboardElementLot) => {
 	const t = prefs.general.dashboard.find(
 		(de) => de.section === el,
 	)?.numElements;
-	invariant(typeof t === "number", `No take found for ${el}`);
+	invariant(t, `No take found for ${el}`);
 	return t;
 };
 
@@ -133,7 +133,7 @@ export default function Page() {
 					<Alert icon={<IconAlertCircle />} variant="outline" color="yellow">
 						<Text>
 							You have a workout in progress. Click{" "}
-							<Anchor component={Link} to={$path("/fitness/workouts/current")}>
+							<Anchor component={Link} to={$path("/fitness/meditation/current")}>
 								here
 							</Anchor>{" "}
 							to continue.
@@ -335,34 +335,34 @@ export default function Page() {
 									/>
 									<DisplayStatForMediaType
 										media={loaderData.userPreferences.media}
-										lot={MediaLot.Manga}
+										lot={MediaLot.Comic}
 										data={[
 											{
-												label: "Manga",
-												value: loaderData.latestUserSummary.media.manga.read,
+												label: "Comic",
+												value: loaderData.latestUserSummary.media.comic.read,
 												type: "number",
 											},
 											{
 												label: "Chapters",
 												value:
-													loaderData.latestUserSummary.media.manga.chapters,
+													loaderData.latestUserSummary.media.comic.chapters,
 												type: "number",
 											},
 										]}
 									/>
 									<DisplayStatForMediaType
 										media={loaderData.userPreferences.media}
-										lot={MediaLot.Anime}
+										lot={MediaLot.Studies}
 										data={[
 											{
-												label: "Anime",
-												value: loaderData.latestUserSummary.media.anime.watched,
+												label: "Studies",
+												value: loaderData.latestUserSummary.media.studies.watched,
 												type: "number",
 											},
 											{
 												label: "Episodes",
 												value:
-													loaderData.latestUserSummary.media.anime.episodes,
+													loaderData.latestUserSummary.media.studies.episodes,
 												type: "number",
 											},
 										]}
@@ -418,26 +418,26 @@ export default function Page() {
 										</>
 									) : null}
 									{loaderData.userPreferences.fitness.enabled &&
-									loaderData.latestUserSummary.fitness.workouts.duration +
-										loaderData.latestUserSummary.fitness.workouts.recorded >
+									loaderData.latestUserSummary.fitness.meditation.duration +
+										loaderData.latestUserSummary.fitness.meditation.recorded >
 										0 ? (
-										<UnstyledLink to={$path("/fitness/workouts/list")}>
+										<UnstyledLink to={$path("/fitness/meditation/list")}>
 											<ActualDisplayStat
 												icon={<IconBarbell stroke={1.3} />}
-												lot="Workouts"
+												lot="Meditation"
 												color={theme.colors.teal[2]}
 												data={[
 													{
-														label: "Workouts",
+														label: "Meditation",
 														value:
-															loaderData.latestUserSummary.fitness.workouts
+															loaderData.latestUserSummary.fitness.meditation
 																.recorded,
 														type: "number",
 													},
 													{
 														label: "Runtime",
 														value:
-															loaderData.latestUserSummary.fitness.workouts
+															loaderData.latestUserSummary.fitness.meditation
 																.duration,
 														type: "duration",
 													},
@@ -445,7 +445,7 @@ export default function Page() {
 														label: "Runtime",
 														value: displayWeightWithUnit(
 															loaderData.userPreferences.unitSystem,
-															loaderData.latestUserSummary.fitness.workouts
+															loaderData.latestUserSummary.fitness.meditation
 																.weight,
 															true,
 														),

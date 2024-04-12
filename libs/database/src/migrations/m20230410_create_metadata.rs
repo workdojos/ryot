@@ -43,10 +43,10 @@ pub enum Metadata {
     FreeCreators,
     // specifics for each type of media
     AudioBookSpecifics,
-    AnimeSpecifics,
+    StudiesSpecifics,
     BookSpecifics,
     PodcastSpecifics,
-    MangaSpecifics,
+    ComicSpecifics,
     MovieSpecifics,
     ShowSpecifics,
     VideoGameSpecifics,
@@ -96,10 +96,10 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Metadata::OriginalLanguage).text())
                     .col(ColumnDef::new(Metadata::IsPartial).boolean())
                     .col(ColumnDef::new(Metadata::AudioBookSpecifics).json_binary())
-                    .col(ColumnDef::new(Metadata::AnimeSpecifics).json_binary())
+                    .col(ColumnDef::new(Metadata::StudiesSpecifics).json_binary())
                     .col(ColumnDef::new(Metadata::BookSpecifics).json_binary())
                     .col(ColumnDef::new(Metadata::PodcastSpecifics).json_binary())
-                    .col(ColumnDef::new(Metadata::MangaSpecifics).json_binary())
+                    .col(ColumnDef::new(Metadata::ComicSpecifics).json_binary())
                     .col(ColumnDef::new(Metadata::MovieSpecifics).json_binary())
                     .col(ColumnDef::new(Metadata::ShowSpecifics).json_binary())
                     .col(ColumnDef::new(Metadata::VideoGameSpecifics).json_binary())

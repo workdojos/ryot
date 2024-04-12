@@ -7,11 +7,11 @@ fragment SeenShowExtraInformationPart on SeenShowExtraInformation {
   season
 }
 
-fragment SeenAnimeExtraInformationPart on SeenAnimeExtraInformation {
+fragment SeenStudiesExtraInformationPart on SeenStudiesExtraInformation {
   episode
 }
 
-fragment SeenMangaExtraInformationPart on SeenMangaExtraInformation {
+fragment SeenComicExtraInformationPart on SeenComicExtraInformation {
   chapter
 }
 
@@ -46,11 +46,11 @@ fragment SeenPart on Seen {
   podcastExtraInformation {
     ...SeenPodcastExtraInformationPart
   }
-  animeExtraInformation {
-    ...SeenAnimeExtraInformationPart
+  studiesExtraInformation {
+    ...SeenStudiesExtraInformationPart
   }
-  mangaExtraInformation {
-    ...SeenMangaExtraInformationPart
+  comicExtraInformation {
+    ...SeenComicExtraInformationPart
   }
 }
 
@@ -145,11 +145,11 @@ fragment ReviewItemPart on ReviewItem {
   podcastExtraInformation {
     ...SeenPodcastExtraInformationPart
   }
-  animeExtraInformation {
-    ...SeenAnimeExtraInformationPart
+  studiesExtraInformation {
+    ...SeenStudiesExtraInformationPart
   }
-  mangaExtraInformation {
-    ...SeenMangaExtraInformationPart
+  comicExtraInformation {
+    ...SeenComicExtraInformationPart
   }
 }
 

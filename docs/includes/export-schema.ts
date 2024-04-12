@@ -42,7 +42,7 @@ export interface UserMeasurement {
 	timestamp: string;
 }
 
-export type MediaLot = 'AudioBook' | 'Anime' | 'Book' | 'Podcast' | 'Manga' | 'Movie' | 'Show' | 'VideoGame' | 'VisualNovel';
+export type MediaLot = 'AudioBook' | 'Studies' | 'Book' | 'Podcast' | 'Comic' | 'Movie' | 'Show' | 'VideoGame' | 'VisualNovel';
 
 export interface IdAndNamedObject {
 	id: number;
@@ -79,12 +79,12 @@ export interface ImportOrExportItemReview {
 
 /** A rating given to an entity. */
 export interface ImportOrExportItemRating {
-	/** If for an anime, the episode for which this review was for. */
-	anime_episode_number: number | null;
+	/** If for an studies, the episode for which this review was for. */
+	studies_episode_number: number | null;
 	/** The comments attached to this review. */
 	comments: ImportOrExportItemReviewComment[] | null;
-	/** If for a manga, the chapter for which this review was for. */
-	manga_chapter_number: number | null;
+	/** If for a comic, the chapter for which this review was for. */
+	comic_chapter_number: number | null;
 	/** If for a podcast, the episode for which this review was for. */
 	podcast_episode_number: number | null;
 	/** The score of the review. */
@@ -99,12 +99,12 @@ export interface ImportOrExportItemRating {
 
 /** A specific instance when an entity was seen. */
 export interface ImportOrExportMediaItemSeen {
-	/** If for an anime, the episode which was seen. */
-	anime_episode_number: number | null;
+	/** If for an studies, the episode which was seen. */
+	studies_episode_number: number | null;
 	/** The timestamp when finished watching. */
 	ended_on: string | null;
-	/** If for a manga, the chapter which was seen. */
-	manga_chapter_number: number | null;
+	/** If for a comic, the chapter which was seen. */
+	comic_chapter_number: number | null;
 	/** If for a podcast, the episode which was seen. */
 	podcast_episode_number: number | null;
 	/** The progress of media done. If none, it is considered as done. */
@@ -119,7 +119,7 @@ export interface ImportOrExportMediaItemSeen {
 	started_on: string | null;
 }
 
-export type MediaSource = 'Anilist' | 'Audible' | 'Custom' | 'GoogleBooks' | 'Igdb' | 'Itunes' | 'Listennotes' | 'MangaUpdates' | 'Mal' | 'Openlibrary' | 'Tmdb' | 'Vndb';
+export type MediaSource = 'Anilist' | 'Audible' | 'Custom' | 'GoogleBooks' | 'Igdb' | 'Itunes' | 'Listennotes' | 'ComicUpdates' | 'Mal' | 'Openlibrary' | 'Tmdb' | 'Vndb';
 
 /** Details about a specific media item that needs to be imported or exported. */
 export interface ImportOrExportMediaItem {
@@ -301,6 +301,6 @@ export interface CompleteExport {
 	media_group: ImportOrExportMediaGroupItem[] | null;
 	/** Data about user's people. */
 	people: ImportOrExportPersonItem[] | null;
-	/** Data about user's workouts. */
-	workouts: Workout[] | null;
+	/** Data about user's meditation. */
+	meditation: Workout[] | null;
 }

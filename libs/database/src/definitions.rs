@@ -27,14 +27,14 @@ pub enum MediaLot {
     #[sea_orm(string_value = "AB")]
     AudioBook,
     #[sea_orm(string_value = "AN")]
-    Anime,
+    Studies,
     #[default]
     #[sea_orm(string_value = "BO")]
     Book,
     #[sea_orm(string_value = "PO")]
     Podcast,
     #[sea_orm(string_value = "MA")]
-    Manga,
+    Comic,
     #[sea_orm(string_value = "MO")]
     Movie,
     #[sea_orm(string_value = "SH")]
@@ -80,7 +80,7 @@ pub enum MediaSource {
     #[sea_orm(string_value = "LI")]
     Listennotes,
     #[sea_orm(string_value = "MU")]
-    MangaUpdates,
+    ComicUpdates,
     #[sea_orm(string_value = "MY")]
     Mal,
     #[sea_orm(string_value = "OL")]
@@ -160,8 +160,6 @@ pub enum ImportSource {
     Audiobookshelf,
     #[sea_orm(string_value = "GO")]
     Goodreads,
-    #[sea_orm(string_value = "IM")]
-    Imdb,
     #[sea_orm(string_value = "MA")]
     Mal,
     #[sea_orm(string_value = "MEJ")]

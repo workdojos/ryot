@@ -267,7 +267,7 @@ export default function Page() {
 										<Anchor
 											component={Link}
 											to={withFragment(
-												$path("/fitness/workouts/:id", { id: h.workoutId }),
+												$path("/fitness/meditation/:id", { id: h.workoutId }),
 												`${loaderData.exerciseDetails.id}__${h.index}`,
 											)}
 											fw="bold"
@@ -399,7 +399,7 @@ export default function Page() {
 																	<Anchor
 																		component={Link}
 																		to={withFragment(
-																			$path("/fitness/workouts/:id", {
+																			$path("/fitness/meditation/:id", {
 																				id: s.workoutId,
 																			}),
 																			`${loaderData.exerciseDetails.id}__${s.exerciseIdx}`,

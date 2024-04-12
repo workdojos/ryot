@@ -121,7 +121,7 @@ impl ExporterService {
                         .export_measurements(user_id, &mut writer)
                         .await?;
                 }
-                ExportItem::Workouts => {
+                ExportItem::Meditation => {
                     self.exercise_service
                         .export_workouts(user_id, &mut writer)
                         .await?;

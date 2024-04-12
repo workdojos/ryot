@@ -1,0 +1,3 @@
+mutation ToggleMediaOwnership($input: ToggleMediaOwnershipInput!) {
+  toggleMediaOwnership(input: $input)
+}

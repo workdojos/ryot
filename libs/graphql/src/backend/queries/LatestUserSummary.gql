@@ -4,7 +4,7 @@ query LatestUserSummary {
     fitness {
       measurementsRecorded
       exercisesInteractedWith
-      workouts {
+      meditation {
         recorded
         duration
         weight
@@ -19,7 +19,7 @@ query LatestUserSummary {
         reviewed
         interactedWith
       }
-      manga {
+      comic {
         chapters
         read
       }
@@ -31,7 +31,7 @@ query LatestUserSummary {
         runtime
         watched
       }
-      anime {
+      studies {
         episodes
         watched
       }

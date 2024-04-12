@@ -24,8 +24,8 @@ pub enum Seen {
     NumTimesUpdated,
     ShowExtraInformation,
     PodcastExtraInformation,
-    AnimeExtraInformation,
-    MangaExtraInformation,
+    StudiesExtraInformation,
+    ComicExtraInformation,
     ProviderWatchedOn,
     TotalTimeSpent,
 }
@@ -80,8 +80,8 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Seen::ShowExtraInformation).json_binary())
                     .col(ColumnDef::new(Seen::PodcastExtraInformation).json_binary())
-                    .col(ColumnDef::new(Seen::AnimeExtraInformation).json_binary())
-                    .col(ColumnDef::new(Seen::MangaExtraInformation).json_binary())
+                    .col(ColumnDef::new(Seen::StudiesExtraInformation).json_binary())
+                    .col(ColumnDef::new(Seen::ComicExtraInformation).json_binary())
                     .foreign_key(
                         ForeignKey::create()
                             .name("user_to_seen_foreign_key")

@@ -265,7 +265,7 @@ impl VndbService {
                 source_specifics: None,
             })
             .collect_vec();
-        let genres = item
+        let trackers = item
             .tags
             .unwrap_or_default()
             .into_iter()
@@ -284,7 +284,7 @@ impl VndbService {
             title: item.title.unwrap(),
             description: item.description,
             people: people.into_iter().unique().collect(),
-            genres: genres.into_iter().unique().collect(),
+            trackers: trackers.into_iter().unique().collect(),
             publish_year: item.released.clone().and_then(|d| convert_date_to_year(&d)),
             publish_date: item.released.and_then(|d| convert_string_to_date(&d)),
             visual_novel_specifics: Some(VisualNovelSpecifics {

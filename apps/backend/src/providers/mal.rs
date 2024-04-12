@@ -11,7 +11,7 @@ use surf::Client;
 use crate::{
     models::{
         media::{
-            AnimeSpecifics, MangaSpecifics, MediaDetails, MetadataImageForMediaDetails,
+            StudiesSpecifics, ComicSpecifics, MediaDetails, MetadataImageForMediaDetails,
             MetadataImageLot, MetadataSearchItem, PartialMetadataWithoutId,
         },
         NamedObject, SearchDetails, SearchResults,
@@ -20,7 +20,7 @@ use crate::{
     utils::get_base_http_client,
 };
 
-static URL: &str = "https://api.myanimelist.net/v2/";
+static URL: &str = "https://api.mystudieslist.net/v2/";
 
 #[derive(Debug, Clone)]
 pub struct MalService {
@@ -50,12 +50,12 @@ impl NonMediaMalService {
 impl MediaProvider for NonMediaMalService {}
 
 #[derive(Debug, Clone)]
-pub struct MalAnimeService {
+pub struct MalStudiesService {
     base: MalService,
     page_limit: i32,
 }
 
-impl MalAnimeService {
+impl MalStudiesService {
     pub async fn new(config: &config::MalConfig, page_limit: i32) -> Self {
         let client = get_client_config(URL, &config.client_id).await;
         Self {
@@ -66,9 +66,9 @@ impl MalAnimeService {
 }
 
 #[async_trait]
-impl MediaProvider for MalAnimeService {
+impl MediaProvider for MalStudiesService {
     async fn metadata_details(&self, identifier: &str) -> Result<MediaDetails> {
-        let details = details(&self.base.client, "anime", identifier).await?;
+        let details = details(&self.base.client, "studies", identifier).await?;
         Ok(details)
     }
 
@@ -79,7 +79,7 @@ impl MediaProvider for MalAnimeService {
         _display_nsfw: bool,
     ) -> Result<SearchResults<MetadataSearchItem>> {
         let (items, total, next_page) =
-            search(&self.base.client, "anime", query, page, self.page_limit).await?;
+            search(&self.base.client, "studies", query, page, self.page_limit).await?;
         Ok(SearchResults {
             details: SearchDetails { total, next_page },
             items,
@@ -88,12 +88,12 @@ impl MediaProvider for MalAnimeService {
 }
 
 #[derive(Debug, Clone)]
-pub struct MalMangaService {
+pub struct MalComicService {
     base: MalService,
     page_limit: i32,
 }
 
-impl MalMangaService {
+impl MalComicService {
     pub async fn new(config: &config::MalConfig, page_limit: i32) -> Self {
         let client = get_client_config(URL, &config.client_id).await;
         Self {
@@ -104,9 +104,9 @@ impl MalMangaService {
 }
 
 #[async_trait]
-impl MediaProvider for MalMangaService {
+impl MediaProvider for MalComicService {
     async fn metadata_details(&self, identifier: &str) -> Result<MediaDetails> {
-        let details = details(&self.base.client, "manga", identifier).await?;
+        let details = details(&self.base.client, "comic", identifier).await?;
         Ok(details)
     }
 
@@ -117,7 +117,7 @@ impl MediaProvider for MalMangaService {
         _display_nsfw: bool,
     ) -> Result<SearchResults<MetadataSearchItem>> {
         let (items, total, next_page) =
-            search(&self.base.client, "manga", query, page, self.page_limit).await?;
+            search(&self.base.client, "comic", query, page, self.page_limit).await?;
         Ok(SearchResults {
             details: SearchDetails { total, next_page },
             items,
@@ -181,7 +181,7 @@ struct ItemNode {
     main_picture: ItemImage,
     nsfw: Option<String>,
     synopsis: Option<String>,
-    genres: Option<Vec<NamedObject>>,
+    trackers: Option<Vec<NamedObject>>,
     studios: Option<Vec<NamedObject>>,
     start_date: Option<String>,
     mean: Option<Decimal>,
@@ -189,8 +189,8 @@ struct ItemNode {
     num_episodes: Option<i32>,
     num_chapters: Option<i32>,
     num_volumes: Option<i32>,
-    related_anime: Option<Vec<ItemData>>,
-    related_manga: Option<Vec<ItemData>>,
+    related_studies: Option<Vec<ItemData>>,
+    related_comic: Option<Vec<ItemData>>,
     recommendations: Option<Vec<ItemData>>,
 }
 
@@ -202,7 +202,7 @@ struct ItemData {
 async fn details(client: &Client, media_type: &str, id: &str) -> Result<MediaDetails> {
     let details: ItemNode = client
         .get(format!("{}/{}", media_type, id))
-        .query(&json!({ "fields": "start_date,end_date,synopsis,genres,status,num_episodes,num_volumes,num_chapters,recommendations,related_manga,related_anime,mean,nsfw" }))
+        .query(&json!({ "fields": "start_date,end_date,synopsis,trackers,status,num_episodes,num_volumes,num_chapters,recommendations,related_comic,related_studies,mean,nsfw" }))
         .unwrap()
         .await
         .map_err(|e| anyhow!(e))?
@@ -210,39 +210,39 @@ async fn details(client: &Client, media_type: &str, id: &str) -> Result<MediaDet
         .await
         .map_err(|e| anyhow!(e))?;
     let lot = match media_type {
-        "manga" => MediaLot::Manga,
-        "anime" => MediaLot::Anime,
+        "comic" => MediaLot::Comic,
+        "studies" => MediaLot::Studies,
         _ => unreachable!(),
     };
-    let manga_specifics =
+    let comic_specifics =
         details
             .num_volumes
             .zip(details.num_chapters)
-            .map(|(v, c)| MangaSpecifics {
+            .map(|(v, c)| ComicSpecifics {
                 chapters: Some(c),
                 volumes: Some(v),
                 url: None,
             });
-    let anime_specifics = details
+    let studies_specifics = details
         .num_episodes
-        .map(|e| AnimeSpecifics { episodes: Some(e) });
+        .map(|e| StudiesSpecifics { episodes: Some(e) });
     let mut suggestions = vec![];
-    for rel in details.related_anime.unwrap_or_default().into_iter() {
+    for rel in details.related_studies.unwrap_or_default().into_iter() {
         suggestions.push(PartialMetadataWithoutId {
             identifier: rel.node.id.to_string(),
             title: rel.node.title,
             image: Some(rel.node.main_picture.large),
             source: MediaSource::Mal,
-            lot: MediaLot::Anime,
+            lot: MediaLot::Studies,
         });
     }
-    for rel in details.related_manga.unwrap_or_default().into_iter() {
+    for rel in details.related_comic.unwrap_or_default().into_iter() {
         suggestions.push(PartialMetadataWithoutId {
             identifier: rel.node.id.to_string(),
             title: rel.node.title,
             image: Some(rel.node.main_picture.large),
             source: MediaSource::Mal,
-            lot: MediaLot::Manga,
+            lot: MediaLot::Comic,
         });
     }
     for rel in details.recommendations.unwrap_or_default().into_iter() {
@@ -264,8 +264,8 @@ async fn details(client: &Client, media_type: &str, id: &str) -> Result<MediaDet
         lot,
         is_nsfw,
         production_status: details.status,
-        genres: details
-            .genres
+        trackers: details
+            .trackers
             .unwrap_or_default()
             .into_iter()
             .map(|g| g.name)
@@ -281,8 +281,8 @@ async fn details(client: &Client, media_type: &str, id: &str) -> Result<MediaDet
         publish_date: details.start_date.and_then(|d| convert_string_to_date(&d)),
         suggestions,
         provider_rating: details.mean,
-        anime_specifics,
-        manga_specifics,
+        studies_specifics,
+        comic_specifics,
         ..Default::default()
     };
     Ok(data)
