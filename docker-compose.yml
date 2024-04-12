@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  ryot-db2:
+  ryot-theone:
     image: postgres:16-alpine
     restart: unless-stopped
     volumes:
@@ -10,15 +10,15 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_DB=postgres
-    container_name: ryot-db2
+    container_name: ryot-theone
 
-  ryot2:
-    image: "ghcr.io/ignisda/ryot:latest"
+  ryottheone:
+    image: "git@github.com:workdojos/ryot.git"
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@ryot-db2:5432/postgres
+      - DATABASE_URL=postgres://postgres:postgres@ryot-theone:5432/postgres
     ports:
-      - "8000:8000"
-    container_name: ryot2
+      - "8020:8000"
+    container_name: ryottheone
 
 volumes:
   postgres_storage:
